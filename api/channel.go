@@ -118,38 +118,11 @@ func createDirectChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if sc, err := CreateDirectChannel(c.Session.UserId, userId); err != nil {
+	if sc, err := app.CreateDirectChannel(c.Session.UserId, userId); err != nil {
 		c.Err = err
 		return
 	} else {
 		w.Write([]byte(sc.ToJson()))
-	}
-}
-
-func CreateDirectChannel(userId string, otherUserId string) (*model.Channel, *model.AppError) {
-	uc := app.Srv.Store.User().Get(otherUserId)
-
-	if uresult := <-uc; uresult.Err != nil {
-		return nil, model.NewLocAppError("CreateDirectChannel", "api.channel.create_direct_channel.invalid_user.app_error", nil, otherUserId)
-	}
-
-	if result := <-app.Srv.Store.Channel().CreateDirectChannel(userId, otherUserId); result.Err != nil {
-		if result.Err.Id == store.CHANNEL_EXISTS_ERROR {
-			return result.Data.(*model.Channel), nil
-		} else {
-			return nil, result.Err
-		}
-	} else {
-		channel := result.Data.(*model.Channel)
-
-		app.InvalidateCacheForUser(userId)
-		app.InvalidateCacheForUser(otherUserId)
-
-		message := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_DIRECT_ADDED, "", channel.Id, "", nil)
-		message.Add("teammate_id", otherUserId)
-		go app.Publish(message)
-
-		return channel, nil
 	}
 }
 
@@ -228,7 +201,9 @@ func updateChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 			return
 		} else {
 			if oldChannelDisplayName != channel.DisplayName {
-				go PostUpdateChannelDisplayNameMessage(c, channel.Id, oldChannelDisplayName, channel.DisplayName)
+				if err := app.PostUpdateChannelDisplayNameMessage(c.Session.UserId, channel.Id, c.TeamId, oldChannelDisplayName, channel.DisplayName); err != nil {
+					l4g.Error(err.Error())
+				}
 			}
 			c.LogAudit("name=" + channel.Name)
 			w.Write([]byte(oldChannel.ToJson()))
@@ -276,72 +251,11 @@ func updateChannelHeader(c *Context, w http.ResponseWriter, r *http.Request) {
 			c.Err = ucresult.Err
 			return
 		} else {
-			go PostUpdateChannelHeaderMessage(c, channel.Id, oldChannelHeader, channelHeader)
+			if err := app.PostUpdateChannelHeaderMessage(c.Session.UserId, channel.Id, c.TeamId, oldChannelHeader, channelHeader); err != nil {
+				l4g.Error(err.Error())
+			}
 			c.LogAudit("name=" + channel.Name)
 			w.Write([]byte(channel.ToJson()))
-		}
-	}
-}
-
-func PostUpdateChannelHeaderMessage(c *Context, channelId string, oldChannelHeader, newChannelHeader string) {
-	uc := app.Srv.Store.User().Get(c.Session.UserId)
-
-	if uresult := <-uc; uresult.Err != nil {
-		l4g.Error(utils.T("api.channel.post_update_channel_header_message_and_forget.retrieve_user.error"), uresult.Err)
-		return
-	} else {
-		user := uresult.Data.(*model.User)
-
-		var message string
-		if oldChannelHeader == "" {
-			message = fmt.Sprintf(utils.T("api.channel.post_update_channel_header_message_and_forget.updated_to"), user.Username, newChannelHeader)
-		} else if newChannelHeader == "" {
-			message = fmt.Sprintf(utils.T("api.channel.post_update_channel_header_message_and_forget.removed"), user.Username, oldChannelHeader)
-		} else {
-			message = fmt.Sprintf(utils.T("api.channel.post_update_channel_header_message_and_forget.updated_from"), user.Username, oldChannelHeader, newChannelHeader)
-		}
-
-		post := &model.Post{
-			ChannelId: channelId,
-			Message:   message,
-			Type:      model.POST_HEADER_CHANGE,
-			UserId:    c.Session.UserId,
-			Props: model.StringInterface{
-				"old_header": oldChannelHeader,
-				"new_header": newChannelHeader,
-			},
-		}
-
-		if _, err := app.CreatePost(post, c.TeamId, false); err != nil {
-			l4g.Error(utils.T("api.channel.post_update_channel_header_message_and_forget.join_leave.error"), err)
-		}
-	}
-}
-
-func PostUpdateChannelDisplayNameMessage(c *Context, channelId string, oldChannelDisplayName, newChannelDisplayName string) {
-	uc := app.Srv.Store.User().Get(c.Session.UserId)
-
-	if uresult := <-uc; uresult.Err != nil {
-		l4g.Error(utils.T("api.channel.post_update_channel_displayname_message_and_forget.retrieve_user.error"), uresult.Err)
-		return
-	} else {
-		user := uresult.Data.(*model.User)
-
-		message := fmt.Sprintf(utils.T("api.channel.post_update_channel_displayname_message_and_forget.updated_from"), user.Username, oldChannelDisplayName, newChannelDisplayName)
-
-		post := &model.Post{
-			ChannelId: channelId,
-			Message:   message,
-			Type:      model.POST_DISPLAYNAME_CHANGE,
-			UserId:    c.Session.UserId,
-			Props: model.StringInterface{
-				"old_displayname": oldChannelDisplayName,
-				"new_displayname": newChannelDisplayName,
-			},
-		}
-
-		if _, err := app.CreatePost(post, c.TeamId, false); err != nil {
-			l4g.Error(utils.T("api.channel.post_update_channel_displayname_message_and_forget.create_post.error"), err)
 		}
 	}
 }
