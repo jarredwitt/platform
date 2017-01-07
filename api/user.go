@@ -185,7 +185,7 @@ func createUser(c *Context, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		go addDirectChannels(team.Id, ruser)
+		go app.AddDirectChannels(team.Id, ruser)
 	}
 
 	if shouldSendWelcomeEmail {
@@ -239,77 +239,6 @@ func IsVerifyHashRequired(user *model.User, team *model.Team, hash string) bool 
 	return shouldVerifyHash
 }
 
-func CreateOAuthUser(c *Context, w http.ResponseWriter, r *http.Request, service string, userData io.Reader, teamId string) *model.User {
-	var user *model.User
-	provider := einterfaces.GetOauthProvider(service)
-	if provider == nil {
-		c.Err = model.NewLocAppError("CreateOAuthUser", "api.user.create_oauth_user.not_available.app_error", map[string]interface{}{"Service": strings.Title(service)}, "")
-		return nil
-	} else {
-		user = provider.GetUserFromJson(userData)
-	}
-
-	if user == nil {
-		c.Err = model.NewLocAppError("CreateOAuthUser", "api.user.create_oauth_user.create.app_error", map[string]interface{}{"Service": service}, "")
-		return nil
-	}
-
-	suchan := app.Srv.Store.User().GetByAuth(user.AuthData, service)
-	euchan := app.Srv.Store.User().GetByEmail(user.Email)
-
-	found := true
-	count := 0
-	for found {
-		if found = IsUsernameTaken(user.Username); found {
-			user.Username = user.Username + strconv.Itoa(count)
-			count += 1
-		}
-	}
-
-	if result := <-suchan; result.Err == nil {
-		c.Err = model.NewLocAppError("CreateOAuthUser", "api.user.create_oauth_user.already_used.app_error",
-			map[string]interface{}{"Service": service}, "email="+user.Email)
-		return nil
-	}
-
-	if result := <-euchan; result.Err == nil {
-		authService := result.Data.(*model.User).AuthService
-		if authService == "" {
-			c.Err = model.NewLocAppError("CreateOAuthUser", "api.user.create_oauth_user.already_attached.app_error",
-				map[string]interface{}{"Service": service, "Auth": model.USER_AUTH_SERVICE_EMAIL}, "email="+user.Email)
-		} else {
-			c.Err = model.NewLocAppError("CreateOAuthUser", "api.user.create_oauth_user.already_attached.app_error",
-				map[string]interface{}{"Service": service, "Auth": authService}, "email="+user.Email)
-		}
-		return nil
-	}
-
-	user.EmailVerified = true
-
-	ruser, err := app.CreateUser(user)
-	if err != nil {
-		c.Err = err
-		return nil
-	}
-
-	if len(teamId) > 0 {
-		err = app.JoinUserToTeamById(teamId, user)
-		if err != nil {
-			c.Err = err
-			return nil
-		}
-
-		go addDirectChannels(teamId, user)
-	}
-
-	doLogin(c, w, r, ruser, "")
-	if c.Err != nil {
-		return nil
-	}
-
-	return ruser
-}
-
 func sendWelcomeEmail(c *Context, userId string, email string, siteURL string, verified bool) {
 	rawUrl, _ := url.Parse(siteURL)
 
@@ -336,43 +265,6 @@ func sendWelcomeEmail(c *Context, userId string, email string, siteURL string, v
 
 	if err := utils.SendMail(email, subject, bodyPage.Render()); err != nil {
 		l4g.Error(utils.T("api.user.send_welcome_email_and_forget.failed.error"), err)
-	}
-}
-
-func addDirectChannels(teamId string, user *model.User) {
-	var profiles map[string]*model.User
-	if result := <-app.Srv.Store.User().GetProfiles(teamId, 0, 100); result.Err != nil {
-		l4g.Error(utils.T("api.user.add_direct_channels_and_forget.failed.error"), user.Id, teamId, result.Err.Error())
-		return
-	} else {
-		profiles = result.Data.(map[string]*model.User)
-	}
-
-	var preferences model.Preferences
-
-	for id := range profiles {
-		if id == user.Id {
-			continue
-		}
-
-		profile := profiles[id]
-
-		preference := model.Preference{
-			UserId:   user.Id,
-			Category: model.PREFERENCE_CATEGORY_DIRECT_CHANNEL_SHOW,
-			Name:     profile.Id,
-			Value:    "true",
-		}
-
-		preferences = append(preferences, preference)
-
-		if len(preferences) >= 10 {
-			break
-		}
-	}
-
-	if result := <-app.Srv.Store.Preference().Save(&preferences); result.Err != nil {
-		l4g.Error(utils.T("api.user.add_direct_channels_and_forget.failed.error"), user.Id, teamId, result.Err.Error())
 	}
 }
 
@@ -522,19 +414,24 @@ func LoginByOAuth(c *Context, w http.ResponseWriter, r *http.Request, service st
 
 	var user *model.User
 	if result := <-app.Srv.Store.User().GetByAuth(&authData, service); result.Err != nil {
+		var err *model.AppError
 		if result.Err.Id == store.MISSING_AUTH_ACCOUNT_ERROR {
-			return CreateOAuthUser(c, w, r, service, bytes.NewReader(buf.Bytes()), "")
+			if user, err = app.CreateOAuthUser(service, bytes.NewReader(buf.Bytes()), ""); err != nil {
+				c.Err = err
+				return nil
+			}
 		}
 		c.Err = result.Err
 		return nil
 	} else {
 		user = result.Data.(*model.User)
-		doLogin(c, w, r, user, "")
-		if c.Err != nil {
-			return nil
-		}
-		return user
 	}
+
+	doLogin(c, w, r, user, "")
+	if c.Err != nil {
+		return nil
+	}
+	return user
 }
 
 // User MUST be authenticated completely before calling Login
@@ -1996,22 +1893,6 @@ func updateUserNotify(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Check if the username is already used by another user. Return false if the username is invalid.
-func IsUsernameTaken(name string) bool {
-
-	if !model.IsValidUsername(name) {
-		return false
-	}
-
-	if result := <-app.Srv.Store.User().GetByUsername(name); result.Err != nil {
-		return false
-	} else {
-		return true
-	}
-
-	return false
-}
-
 func emailToOAuth(c *Context, w http.ResponseWriter, r *http.Request) {
 	props := model.MapFromJson(r.Body)
 
@@ -2588,7 +2469,7 @@ func completeSaml(c *Context, w http.ResponseWriter, r *http.Request) {
 		case model.OAUTH_ACTION_SIGNUP:
 			teamId := relayProps["team_id"]
 			if len(teamId) > 0 {
-				go addDirectChannels(teamId, user)
+				go app.AddDirectChannels(teamId, user)
 			}
 			break
 		case model.OAUTH_ACTION_EMAIL_TO_SSO:

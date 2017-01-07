@@ -311,7 +311,11 @@ func completeOAuth(c *Context, w http.ResponseWriter, r *http.Request) {
 		action := props["action"]
 		switch action {
 		case model.OAUTH_ACTION_SIGNUP:
-			CreateOAuthUser(c, w, r, service, body, teamId)
+			if user, err := app.CreateOAuthUser(service, body, teamId); err != nil {
+				c.Err = err
+			} else {
+				doLogin(c, w, r, user, "")
+			}
 			if c.Err == nil {
 				http.Redirect(w, r, GetProtocol(r)+"://"+r.Host, http.StatusTemporaryRedirect)
 			}

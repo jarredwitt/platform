@@ -4,7 +4,12 @@
 package app
 
 import (
+	"io"
+	"strconv"
+	"strings"
+
 	l4g "github.com/alecthomas/log4go"
+	"github.com/mattermost/platform/einterfaces"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
 )
@@ -57,4 +62,82 @@ func CreateUser(user *model.User) (*model.User, *model.AppError) {
 
 		return ruser, nil
 	}
+}
+
+func CreateOAuthUser(service string, userData io.Reader, teamId string) (*model.User, *model.AppError) {
+	var user *model.User
+	provider := einterfaces.GetOauthProvider(service)
+	if provider == nil {
+		return nil, model.NewLocAppError("CreateOAuthUser", "api.user.create_oauth_user.not_available.app_error", map[string]interface{}{"Service": strings.Title(service)}, "")
+	} else {
+		user = provider.GetUserFromJson(userData)
+	}
+
+	if user == nil {
+		return nil, model.NewLocAppError("CreateOAuthUser", "api.user.create_oauth_user.create.app_error", map[string]interface{}{"Service": service}, "")
+	}
+
+	suchan := Srv.Store.User().GetByAuth(user.AuthData, service)
+	euchan := Srv.Store.User().GetByEmail(user.Email)
+
+	found := true
+	count := 0
+	for found {
+		if found = IsUsernameTaken(user.Username); found {
+			user.Username = user.Username + strconv.Itoa(count)
+			count += 1
+		}
+	}
+
+	if result := <-suchan; result.Err == nil {
+		return nil, model.NewLocAppError("CreateOAuthUser", "api.user.create_oauth_user.already_used.app_error", map[string]interface{}{"Service": service}, "email="+user.Email)
+	}
+
+	if result := <-euchan; result.Err == nil {
+		authService := result.Data.(*model.User).AuthService
+		if authService == "" {
+			return nil, model.NewLocAppError("CreateOAuthUser", "api.user.create_oauth_user.already_attached.app_error",
+				map[string]interface{}{"Service": service, "Auth": model.USER_AUTH_SERVICE_EMAIL}, "email="+user.Email)
+		} else {
+			return nil, model.NewLocAppError("CreateOAuthUser", "api.user.create_oauth_user.already_attached.app_error",
+				map[string]interface{}{"Service": service, "Auth": authService}, "email="+user.Email)
+		}
+	}
+
+	user.EmailVerified = true
+
+	ruser, err := CreateUser(user)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(teamId) > 0 {
+		err = JoinUserToTeamById(teamId, user)
+		if err != nil {
+			return nil, err
+		}
+
+		err = AddDirectChannels(teamId, user)
+		if err != nil {
+			l4g.Error(err.Error())
+		}
+	}
+
+	return ruser, nil
+}
+
+// Check if the username is already used by another user. Return false if the username is invalid.
+func IsUsernameTaken(name string) bool {
+
+	if !model.IsValidUsername(name) {
+		return false
+	}
+
+	if result := <-Srv.Store.User().GetByUsername(name); result.Err != nil {
+		return false
+	} else {
+		return true
+	}
+
+	return false
 }
