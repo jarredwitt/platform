@@ -5,6 +5,7 @@ package app
 
 import (
 	"io"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -140,4 +141,76 @@ func IsUsernameTaken(name string) bool {
 	}
 
 	return false
+}
+
+func GetUserForLogin(loginId string, onlyLdap bool) (*model.User, *model.AppError) {
+	ldapAvailable := *utils.Cfg.LdapSettings.Enable && einterfaces.GetLdapInterface() != nil && utils.IsLicensed && *utils.License.Features.LDAP
+
+	if result := <-Srv.Store.User().GetForLogin(
+		loginId,
+		*utils.Cfg.EmailSettings.EnableSignInWithUsername && !onlyLdap,
+		*utils.Cfg.EmailSettings.EnableSignInWithEmail && !onlyLdap,
+		ldapAvailable,
+	); result.Err != nil && result.Err.Id == "store.sql_user.get_for_login.multiple_users" {
+		// don't fall back to LDAP in this case since we already know there's an LDAP user, but that it shouldn't work
+		result.Err.StatusCode = http.StatusBadRequest
+		return nil, result.Err
+	} else if result.Err != nil {
+		if !ldapAvailable {
+			// failed to find user and no LDAP server to fall back on
+			result.Err.StatusCode = http.StatusBadRequest
+			return nil, result.Err
+		}
+
+		// fall back to LDAP server to see if we can find a user
+		if ldapUser, ldapErr := einterfaces.GetLdapInterface().GetUser(loginId); ldapErr != nil {
+			ldapErr.StatusCode = http.StatusBadRequest
+			return nil, ldapErr
+		} else {
+			return ldapUser, nil
+		}
+	} else {
+		return result.Data.(*model.User), nil
+	}
+}
+
+func ActivateMfa(userId, token string) *model.AppError {
+	mfaInterface := einterfaces.GetMfaInterface()
+	if mfaInterface == nil {
+		err := model.NewLocAppError("ActivateMfa", "api.user.update_mfa.not_available.app_error", nil, "")
+		err.StatusCode = http.StatusNotImplemented
+		return err
+	}
+
+	var user *model.User
+	if result := <-Srv.Store.User().Get(userId); result.Err != nil {
+		return result.Err
+	} else {
+		user = result.Data.(*model.User)
+	}
+
+	if len(user.AuthService) > 0 && user.AuthService != model.USER_AUTH_SERVICE_LDAP {
+		return model.NewLocAppError("ActivateMfa", "api.user.activate_mfa.email_and_ldap_only.app_error", nil, "")
+	}
+
+	if err := mfaInterface.Activate(user, token); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func DeactivateMfa(userId string) *model.AppError {
+	mfaInterface := einterfaces.GetMfaInterface()
+	if mfaInterface == nil {
+		err := model.NewLocAppError("DeactivateMfa", "api.user.update_mfa.not_available.app_error", nil, "")
+		err.StatusCode = http.StatusNotImplemented
+		return err
+	}
+
+	if err := mfaInterface.Deactivate(userId); err != nil {
+		return err
+	}
+
+	return nil
 }

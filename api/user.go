@@ -324,7 +324,7 @@ func login(c *Context, w http.ResponseWriter, r *http.Request) {
 	} else {
 		c.LogAudit("attempt")
 
-		if user, err = getUserForLogin(loginId, ldapOnly); err != nil {
+		if user, err = app.GetUserForLogin(loginId, ldapOnly); err != nil {
 			c.LogAudit("failure")
 			c.Err = err
 			if einterfaces.GetMetricsInterface() != nil {
@@ -359,37 +359,6 @@ func login(c *Context, w http.ResponseWriter, r *http.Request) {
 	user.Sanitize(map[string]bool{})
 
 	w.Write([]byte(user.ToJson()))
-}
-
-func getUserForLogin(loginId string, onlyLdap bool) (*model.User, *model.AppError) {
-	ldapAvailable := *utils.Cfg.LdapSettings.Enable && einterfaces.GetLdapInterface() != nil && utils.IsLicensed && *utils.License.Features.LDAP
-
-	if result := <-app.Srv.Store.User().GetForLogin(
-		loginId,
-		*utils.Cfg.EmailSettings.EnableSignInWithUsername && !onlyLdap,
-		*utils.Cfg.EmailSettings.EnableSignInWithEmail && !onlyLdap,
-		ldapAvailable,
-	); result.Err != nil && result.Err.Id == "store.sql_user.get_for_login.multiple_users" {
-		// don't fall back to LDAP in this case since we already know there's an LDAP user, but that it shouldn't work
-		result.Err.StatusCode = http.StatusBadRequest
-		return nil, result.Err
-	} else if result.Err != nil {
-		if !ldapAvailable {
-			// failed to find user and no LDAP server to fall back on
-			result.Err.StatusCode = http.StatusBadRequest
-			return nil, result.Err
-		}
-
-		// fall back to LDAP server to see if we can find a user
-		if ldapUser, ldapErr := einterfaces.GetLdapInterface().GetUser(loginId); ldapErr != nil {
-			ldapErr.StatusCode = http.StatusBadRequest
-			return nil, ldapErr
-		} else {
-			return ldapUser, nil
-		}
-	} else {
-		return result.Data.(*model.User), nil
-	}
 }
 
 func LoginByOAuth(c *Context, w http.ResponseWriter, r *http.Request, service string, userData io.Reader) *model.User {
@@ -2213,7 +2182,7 @@ func resendVerification(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user, error := getUserForLogin(email, false); error != nil {
+	if user, error := app.GetUserForLogin(email, false); error != nil {
 		c.Err = error
 		return
 	} else {
@@ -2280,13 +2249,13 @@ func updateMfa(c *Context, w http.ResponseWriter, r *http.Request) {
 	c.LogAudit("attempt")
 
 	if activate {
-		if err := ActivateMfa(c.Session.UserId, token); err != nil {
+		if err := app.ActivateMfa(c.Session.UserId, token); err != nil {
 			c.Err = err
 			return
 		}
 		c.LogAudit("success - activated")
 	} else {
-		if err := DeactivateMfa(c.Session.UserId); err != nil {
+		if err := app.DeactivateMfa(c.Session.UserId); err != nil {
 			c.Err = err
 			return
 		}
@@ -2307,47 +2276,6 @@ func updateMfa(c *Context, w http.ResponseWriter, r *http.Request) {
 	rdata := map[string]string{}
 	rdata["status"] = "ok"
 	w.Write([]byte(model.MapToJson(rdata)))
-}
-
-func ActivateMfa(userId, token string) *model.AppError {
-	mfaInterface := einterfaces.GetMfaInterface()
-	if mfaInterface == nil {
-		err := model.NewLocAppError("ActivateMfa", "api.user.update_mfa.not_available.app_error", nil, "")
-		err.StatusCode = http.StatusNotImplemented
-		return err
-	}
-
-	var user *model.User
-	if result := <-app.Srv.Store.User().Get(userId); result.Err != nil {
-		return result.Err
-	} else {
-		user = result.Data.(*model.User)
-	}
-
-	if len(user.AuthService) > 0 && user.AuthService != model.USER_AUTH_SERVICE_LDAP {
-		return model.NewLocAppError("ActivateMfa", "api.user.activate_mfa.email_and_ldap_only.app_error", nil, "")
-	}
-
-	if err := mfaInterface.Activate(user, token); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func DeactivateMfa(userId string) *model.AppError {
-	mfaInterface := einterfaces.GetMfaInterface()
-	if mfaInterface == nil {
-		err := model.NewLocAppError("DeactivateMfa", "api.user.update_mfa.not_available.app_error", nil, "")
-		err.StatusCode = http.StatusNotImplemented
-		return err
-	}
-
-	if err := mfaInterface.Deactivate(userId); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func checkMfa(c *Context, w http.ResponseWriter, r *http.Request) {
