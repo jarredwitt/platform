@@ -344,3 +344,58 @@ func PostUpdateChannelDisplayNameMessage(userId string, channelId string, teamId
 
 	return nil
 }
+
+func GetChannel(channelId string) (*model.Channel, *model.AppError) {
+	if result := <-Srv.Store.Channel().Get(channelId, true); result.Err != nil {
+		return nil, result.Err
+	} else {
+		return result.Data.(*model.Channel), nil
+	}
+}
+
+func GetChannelByName(channelName, teamId string) (*model.Channel, *model.AppError) {
+	if result := <-Srv.Store.Channel().GetByName(teamId, channelName); result.Err != nil {
+		return nil, result.Err
+	} else {
+		return result.Data.(*model.Channel), nil
+	}
+}
+
+func JoinChannel(channel *model.Channel, userId string) *model.AppError {
+	userChan := Srv.Store.User().Get(userId)
+	memberChan := Srv.Store.Channel().GetMember(channel.Id, userId)
+
+	if uresult := <-userChan; uresult.Err != nil {
+		return uresult.Err
+	} else if mresult := <-memberChan; mresult.Err == nil && mresult.Data != nil {
+		// user is already in the channel
+		return nil
+	} else {
+		user := uresult.Data.(*model.User)
+
+		if channel.Type == model.CHANNEL_OPEN {
+			if _, err := AddUserToChannel(user, channel); err != nil {
+				return err
+			}
+			PostUserAddRemoveMessage(userId, channel.Id, channel.TeamId, fmt.Sprintf(utils.T("api.channel.join_channel.post_and_forget"), user.Username), model.POST_JOIN_LEAVE)
+		} else {
+			return model.NewLocAppError("JoinChannel", "api.channel.join_channel.permissions.app_error", nil, "")
+		}
+	}
+
+	return nil
+}
+
+func PostUserAddRemoveMessage(userId, channelId, teamId, message, postType string) *model.AppError {
+	post := &model.Post{
+		ChannelId: channelId,
+		Message:   message,
+		Type:      postType,
+		UserId:    userId,
+	}
+	if _, err := CreatePost(post, teamId, false); err != nil {
+		return model.NewLocAppError("PostUserAddRemoveMessage", "api.channel.post_user_add_remove_message_and_forget.error", nil, err.Error())
+	}
+
+	return nil
+}

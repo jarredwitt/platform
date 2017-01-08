@@ -386,84 +386,34 @@ func join(c *Context, w http.ResponseWriter, r *http.Request) {
 	channelId := params["channel_id"]
 	channelName := params["channel_name"]
 
-	var outChannel *model.Channel = nil
+	var channel *model.Channel
+	var err *model.AppError
 	if channelId != "" {
-		if err, channel := JoinChannelById(c, c.Session.UserId, channelId); err != nil {
-			c.Err = err
-			c.Err.StatusCode = http.StatusForbidden
-			return
-		} else {
-			outChannel = channel
-		}
+		channel, err = app.GetChannel(channelId)
 	} else if channelName != "" {
-		if err, channel := JoinChannelByName(c, c.Session.UserId, c.TeamId, channelName); err != nil {
-			c.Err = err
-			c.Err.StatusCode = http.StatusForbidden
-			return
-		} else {
-			outChannel = channel
-		}
+		channel, err = app.GetChannelByName(channelName, c.TeamId)
 	} else {
 		c.SetInvalidParam("join", "channel_id, channel_name")
 		return
 	}
-	w.Write([]byte(outChannel.ToJson()))
-}
 
-func JoinChannelByName(c *Context, userId string, teamId string, channelName string) (*model.AppError, *model.Channel) {
-	channelChannel := app.Srv.Store.Channel().GetByName(teamId, channelName)
-	userChannel := app.Srv.Store.User().Get(userId)
+	if err != nil {
+		c.Err = err
+		return
+	}
 
-	return joinChannel(c, channelChannel, userChannel)
-}
-
-func JoinChannelById(c *Context, userId string, channelId string) (*model.AppError, *model.Channel) {
-	channelChannel := app.Srv.Store.Channel().Get(channelId, true)
-	userChannel := app.Srv.Store.User().Get(userId)
-
-	return joinChannel(c, channelChannel, userChannel)
-}
-
-func joinChannel(c *Context, channelChannel store.StoreChannel, userChannel store.StoreChannel) (*model.AppError, *model.Channel) {
-	if cresult := <-channelChannel; cresult.Err != nil {
-		return cresult.Err, nil
-	} else if uresult := <-userChannel; uresult.Err != nil {
-		return uresult.Err, nil
-	} else {
-		channel := cresult.Data.(*model.Channel)
-		user := uresult.Data.(*model.User)
-
-		if mresult := <-app.Srv.Store.Channel().GetMember(channel.Id, user.Id); mresult.Err == nil && mresult.Data != nil {
-			// the user is already in the channel so just return successful
-			return nil, channel
-		}
-
+	if channel.Type == model.CHANNEL_OPEN {
 		if !HasPermissionToTeamContext(c, channel.TeamId, model.PERMISSION_JOIN_PUBLIC_CHANNELS) {
-			return c.Err, nil
+			return
 		}
+	}
 
-		if channel.Type == model.CHANNEL_OPEN {
-			if _, err := app.AddUserToChannel(user, channel); err != nil {
-				return err, nil
-			}
-			go PostUserAddRemoveMessage(c, channel.Id, fmt.Sprintf(utils.T("api.channel.join_channel.post_and_forget"), user.Username), model.POST_JOIN_LEAVE)
-		} else {
-			return model.NewLocAppError("join", "api.channel.join_channel.permissions.app_error", nil, ""), nil
-		}
-		return nil, channel
+	if err = app.JoinChannel(channel, c.Session.UserId); err != nil {
+		c.Err = err
+		return
 	}
-}
 
-func PostUserAddRemoveMessage(c *Context, channelId string, message, postType string) {
-	post := &model.Post{
-		ChannelId: channelId,
-		Message:   message,
-		Type:      postType,
-		UserId:    c.Session.UserId,
-	}
-	if _, err := app.CreatePost(post, c.TeamId, false); err != nil {
-		l4g.Error(utils.T("api.channel.post_user_add_remove_message_and_forget.error"), err)
-	}
+	w.Write([]byte(channel.ToJson()))
 }
 
 func leave(c *Context, w http.ResponseWriter, r *http.Request) {
@@ -514,7 +464,7 @@ func leave(c *Context, w http.ResponseWriter, r *http.Request) {
 
 		RemoveUserFromChannel(c.Session.UserId, c.Session.UserId, channel)
 
-		go PostUserAddRemoveMessage(c, channel.Id, fmt.Sprintf(utils.T("api.channel.leave.left"), user.Username), model.POST_JOIN_LEAVE)
+		go app.PostUserAddRemoveMessage(c.Session.UserId, channel.Id, channel.TeamId, fmt.Sprintf(utils.T("api.channel.leave.left"), user.Username), model.POST_JOIN_LEAVE)
 
 		result := make(map[string]string)
 		result["id"] = channel.Id
@@ -820,7 +770,7 @@ func addMember(c *Context, w http.ResponseWriter, r *http.Request) {
 
 			c.LogAudit("name=" + channel.Name + " user_id=" + userId)
 
-			go PostUserAddRemoveMessage(c, channel.Id, fmt.Sprintf(utils.T("api.channel.add_member.added"), nUser.Username, oUser.Username), model.POST_ADD_REMOVE)
+			go app.PostUserAddRemoveMessage(c.Session.UserId, channel.Id, channel.TeamId, fmt.Sprintf(utils.T("api.channel.add_member.added"), nUser.Username, oUser.Username), model.POST_ADD_REMOVE)
 
 			<-app.Srv.Store.Channel().UpdateLastViewedAt([]string{id}, oUser.Id)
 			w.Write([]byte(cm.ToJson()))
@@ -874,7 +824,7 @@ func removeMember(c *Context, w http.ResponseWriter, r *http.Request) {
 
 			c.LogAudit("name=" + channel.Name + " user_id=" + userIdToRemove)
 
-			go PostUserAddRemoveMessage(c, channel.Id, fmt.Sprintf(utils.T("api.channel.remove_member.removed"), oUser.Username), model.POST_ADD_REMOVE)
+			go app.PostUserAddRemoveMessage(c.Session.UserId, channel.Id, channel.TeamId, fmt.Sprintf(utils.T("api.channel.remove_member.removed"), oUser.Username), model.POST_ADD_REMOVE)
 
 			result := make(map[string]string)
 			result["channel_id"] = channel.Id

@@ -333,7 +333,7 @@
   },
   {
     "id": "api.channel.post_user_add_remove_message_and_forget.error",
-    "translation": "Failed to post join/leave message %v"
+    "translation": "Failed to post join/leave message"
   },
   {
     "id": "api.channel.remove.default.app_error",
