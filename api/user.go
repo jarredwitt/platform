@@ -266,16 +266,14 @@ func login(c *Context, w http.ResponseWriter, r *http.Request) {
 	if len(id) != 0 {
 		c.LogAuditWithUserId(id, "attempt")
 
-		if result := <-app.Srv.Store.User().Get(id); result.Err != nil {
+		if user, err = app.GetUser(id); err != nil {
 			c.LogAuditWithUserId(id, "failure")
-			c.Err = result.Err
+			c.Err = err
 			c.Err.StatusCode = http.StatusBadRequest
 			if einterfaces.GetMetricsInterface() != nil {
 				einterfaces.GetMetricsInterface().IncrementLoginFail()
 			}
 			return
-		} else {
-			user = result.Data.(*model.User)
 		}
 	} else {
 		c.LogAudit("attempt")
@@ -338,18 +336,16 @@ func LoginByOAuth(c *Context, w http.ResponseWriter, r *http.Request, service st
 	}
 
 	var user *model.User
-	if result := <-app.Srv.Store.User().GetByAuth(&authData, service); result.Err != nil {
-		var err *model.AppError
-		if result.Err.Id == store.MISSING_AUTH_ACCOUNT_ERROR {
+	var err *model.AppError
+	if user, err = app.GetUserByAuth(&authData, service); err != nil {
+		if err.Id == store.MISSING_AUTH_ACCOUNT_ERROR {
 			if user, err = app.CreateOAuthUser(service, bytes.NewReader(buf.Bytes()), ""); err != nil {
 				c.Err = err
 				return nil
 			}
 		}
-		c.Err = result.Err
+		c.Err = err
 		return nil
-	} else {
-		user = result.Data.(*model.User)
 	}
 
 	doLogin(c, w, r, user, "")
@@ -380,9 +376,8 @@ func doLogin(c *Context, w http.ResponseWriter, r *http.Request, user *model.Use
 			for _, session := range sessions {
 				if session.DeviceId == deviceId {
 					l4g.Debug(utils.T("api.user.login.revoking.app_error"), session.Id, user.Id)
-					RevokeSessionById(c, session.Id)
-					if c.Err != nil {
-						c.LogError(c.Err)
+					if err := app.RevokeSessionById(session.Id); err != nil {
+						c.LogError(err)
 						c.Err = nil
 					}
 				}
@@ -452,7 +447,12 @@ func doLogin(c *Context, w http.ResponseWriter, r *http.Request, user *model.Use
 func revokeSession(c *Context, w http.ResponseWriter, r *http.Request) {
 	props := model.MapFromJson(r.Body)
 	id := props["id"]
-	RevokeSessionById(c, id)
+
+	if err := app.RevokeSessionById(id); err != nil {
+		c.Err = err
+		return
+	}
+
 	w.Write([]byte(model.MapToJson(props)))
 }
 
@@ -470,23 +470,11 @@ func attachDeviceId(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A special case where we logout of all other sessions with the same Id
-	if result := <-app.Srv.Store.Session().GetSessions(c.Session.UserId); result.Err != nil {
-		c.Err = result.Err
+	// A special case where we logout of all other sessions with the same device id
+	if err := app.RevokeSessionsForDeviceId(c.Session.UserId, deviceId, c.Session.Id); err != nil {
+		c.Err = err
 		c.Err.StatusCode = http.StatusInternalServerError
 		return
-	} else {
-		sessions := result.Data.([]*model.Session)
-		for _, session := range sessions {
-			if session.DeviceId == deviceId && session.Id != c.Session.Id {
-				l4g.Debug(utils.T("api.user.login.revoking.app_error"), session.Id, c.Session.UserId)
-				RevokeSessionById(c, session.Id)
-				if c.Err != nil {
-					c.LogError(c.Err)
-					c.Err = nil
-				}
-			}
-		}
 	}
 
 	app.RemoveAllSessionsForUserId(c.Session.UserId)
@@ -512,32 +500,12 @@ func attachDeviceId(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, sessionCookie)
 
-	if result := <-app.Srv.Store.Session().UpdateDeviceId(c.Session.Id, deviceId, c.Session.ExpiresAt); result.Err != nil {
-		c.Err = result.Err
+	if err := app.AttachDeviceId(c.Session.Id, deviceId, c.Session.ExpiresAt); err != nil {
+		c.Err = err
 		return
 	}
 
 	w.Write([]byte(model.MapToJson(props)))
-}
-
-func RevokeSessionById(c *Context, sessionId string) {
-	if result := <-app.Srv.Store.Session().Get(sessionId); result.Err != nil {
-		c.Err = result.Err
-	} else {
-		session := result.Data.(*model.Session)
-		c.LogAudit("session_id=" + session.Id)
-
-		if session.IsOAuth {
-			RevokeAccessToken(session.Token)
-		} else {
-			if result := <-app.Srv.Store.Session().Remove(session.Id); result.Err != nil {
-				c.Err = result.Err
-			}
-		}
-
-		RevokeWebrtcToken(session.Id)
-		app.RemoveAllSessionsForUserId(session.UserId)
-	}
 }
 
 // IF YOU UPDATE THIS PLEASE UPDATE BELOW
@@ -551,7 +519,7 @@ func RevokeAllSession(c *Context, userId string) {
 		for _, session := range sessions {
 			c.LogAuditWithUserId(userId, "session_id="+session.Id)
 			if session.IsOAuth {
-				RevokeAccessToken(session.Token)
+				app.RevokeAccessToken(session.Token)
 			} else {
 				if result := <-app.Srv.Store.Session().Remove(session.Id); result.Err != nil {
 					c.Err = result.Err
@@ -559,7 +527,7 @@ func RevokeAllSession(c *Context, userId string) {
 				}
 			}
 
-			RevokeWebrtcToken(session.Id)
+			app.RevokeWebrtcToken(session.Id)
 		}
 	}
 
@@ -576,14 +544,14 @@ func RevokeAllSessionsNoContext(userId string) *model.AppError {
 
 		for _, session := range sessions {
 			if session.IsOAuth {
-				RevokeAccessToken(session.Token)
+				app.RevokeAccessToken(session.Token)
 			} else {
 				if result := <-app.Srv.Store.Session().Remove(session.Id); result.Err != nil {
 					return result.Err
 				}
 			}
 
-			RevokeWebrtcToken(session.Id)
+			app.RevokeWebrtcToken(session.Id)
 		}
 	}
 
@@ -628,7 +596,10 @@ func Logout(c *Context, w http.ResponseWriter, r *http.Request) {
 	c.LogAudit("")
 	c.RemoveSessionCookie(w, r)
 	if c.Session.Id != "" {
-		RevokeSessionById(c, c.Session.Id)
+		if err := app.RevokeSessionById(c.Session.Id); err != nil {
+			c.Err = err
+			return
+		}
 	}
 }
 

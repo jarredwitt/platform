@@ -221,6 +221,22 @@ func IsUsernameTaken(name string) bool {
 	return false
 }
 
+func GetUser(userId string) (*model.User, *model.AppError) {
+	if result := <-Srv.Store.User().Get(userId); result.Err != nil {
+		return nil, result.Err
+	} else {
+		return result.Data.(*model.User), nil
+	}
+}
+
+func GetUserByAuth(authData *string, authService string) (*model.User, *model.AppError) {
+	if result := <-Srv.Store.User().GetByAuth(authData, authService); result.Err != nil {
+		return nil, result.Err
+	} else {
+		return result.Data.(*model.User), nil
+	}
+}
+
 func GetUserForLogin(loginId string, onlyLdap bool) (*model.User, *model.AppError) {
 	ldapAvailable := *utils.Cfg.LdapSettings.Enable && einterfaces.GetLdapInterface() != nil && utils.IsLicensed && *utils.License.Features.LDAP
 

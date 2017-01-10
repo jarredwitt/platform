@@ -250,32 +250,6 @@ func getAuthorizedApps(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func RevokeAccessToken(token string) *model.AppError {
-
-	session, _ := app.GetSession(token)
-	schan := app.Srv.Store.Session().Remove(token)
-
-	if result := <-app.Srv.Store.OAuth().GetAccessData(token); result.Err != nil {
-		return model.NewLocAppError("RevokeAccessToken", "api.oauth.revoke_access_token.get.app_error", nil, "")
-	}
-
-	tchan := app.Srv.Store.OAuth().RemoveAccessData(token)
-
-	if result := <-tchan; result.Err != nil {
-		return model.NewLocAppError("RevokeAccessToken", "api.oauth.revoke_access_token.del_token.app_error", nil, "")
-	}
-
-	if result := <-schan; result.Err != nil {
-		return model.NewLocAppError("RevokeAccessToken", "api.oauth.revoke_access_token.del_session.app_error", nil, "")
-	}
-
-	if session != nil {
-		app.RemoveAllSessionsForUserId(session.UserId)
-	}
-
-	return nil
-}
-
 func GetAuthData(code string) *model.AuthData {
 	if result := <-app.Srv.Store.OAuth().GetAuthData(code); result.Err != nil {
 		l4g.Error(utils.T("api.oauth.get_auth_data.find.error"), code)
@@ -935,7 +909,7 @@ func deauthorizeOAuthApp(c *Context, w http.ResponseWriter, r *http.Request) {
 		accessData := result.Data.([]*model.AccessData)
 
 		for _, a := range accessData {
-			if err := RevokeAccessToken(a.Token); err != nil {
+			if err := app.RevokeAccessToken(a.Token); err != nil {
 				c.Err = err
 				return
 			}
