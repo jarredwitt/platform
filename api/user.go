@@ -102,94 +102,50 @@ func createUser(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hash := r.URL.Query().Get("h")
-	teamId := ""
-	var team *model.Team
-	shouldSendWelcomeEmail := true
 	user.EmailVerified = false
 
-	if len(hash) > 0 {
-		data := r.URL.Query().Get("d")
-		props := model.MapFromJson(strings.NewReader(data))
+	shouldSendWelcomeEmail := true
 
-		if !model.ComparePassword(hash, fmt.Sprintf("%v:%v", data, utils.Cfg.EmailSettings.InviteSalt)) {
-			c.Err = model.NewLocAppError("createUser", "api.user.create_user.signup_link_invalid.app_error", nil, "")
-			return
-		}
-
-		t, err := strconv.ParseInt(props["time"], 10, 64)
-		if err != nil || model.GetMillis()-t > 1000*60*60*48 { // 48 hours
-			c.Err = model.NewLocAppError("createUser", "api.user.create_user.signup_link_expired.app_error", nil, "")
-			return
-		}
-
-		teamId = props["id"]
-
-		// try to load the team to make sure it exists
-		if result := <-app.Srv.Store.Team().Get(teamId); result.Err != nil {
-			c.Err = result.Err
-			return
-		} else {
-			team = result.Data.(*model.Team)
-		}
-
-		user.Email = props["email"]
-		user.EmailVerified = true
-		shouldSendWelcomeEmail = false
-	}
-
+	hash := r.URL.Query().Get("h")
 	inviteId := r.URL.Query().Get("iid")
-	if len(inviteId) > 0 {
-		if result := <-app.Srv.Store.Team().GetByInviteId(inviteId); result.Err != nil {
-			c.Err = result.Err
-			return
-		} else {
-			team = result.Data.(*model.Team)
-			teamId = team.Id
-		}
-	}
-
-	firstAccount := false
-	if app.SessionCacheLength() == 0 {
-		if cr := <-app.Srv.Store.User().GetTotalUsersCount(); cr.Err != nil {
-			c.Err = cr.Err
-			return
-		} else {
-			count := cr.Data.(int64)
-			if count <= 0 {
-				firstAccount = true
-			}
-		}
-	}
-
-	if !firstAccount && !*utils.Cfg.TeamSettings.EnableOpenServer && len(teamId) == 0 {
-		c.Err = model.NewLocAppError("createUser", "api.user.create_user.no_open_server", nil, "email="+user.Email)
-		return
-	}
 
 	if !CheckUserDomain(user, utils.Cfg.TeamSettings.RestrictCreationToDomains) {
 		c.Err = model.NewLocAppError("createUser", "api.user.create_user.accepted_domain.app_error", nil, "")
 		return
 	}
 
-	ruser, err := app.CreateUser(user)
-	if err != nil {
-		c.Err = err
-		return
-	}
-
-	if len(teamId) > 0 {
-		err := app.JoinUserToTeam(team, ruser)
+	var ruser *model.User
+	var err *model.AppError
+	if len(hash) > 0 {
+		data := r.URL.Query().Get("d")
+		ruser, err = app.CreateUserWithHash(user, hash, data)
 		if err != nil {
 			c.Err = err
 			return
 		}
 
-		go app.AddDirectChannels(team.Id, ruser)
+		shouldSendWelcomeEmail = false
+	} else if len(inviteId) > 0 {
+		ruser, err = app.CreateUserWithInviteId(user, inviteId)
+		if err != nil {
+			c.Err = err
+			return
+		}
+	} else {
+		if !app.IsFirstUserAccount() && !*utils.Cfg.TeamSettings.EnableOpenServer {
+			c.Err = model.NewLocAppError("createUser", "api.user.create_user.no_open_server", nil, "email="+user.Email)
+			return
+		}
+
+		ruser, err = app.CreateUser(user)
+		if err != nil {
+			c.Err = err
+			return
+		}
 	}
 
 	if shouldSendWelcomeEmail {
-		go sendWelcomeEmail(c, ruser.Id, ruser.Email, c.GetSiteURL(), ruser.EmailVerified)
+		sendWelcomeEmail(c, ruser.Id, ruser.Email, c.GetSiteURL(), ruser.EmailVerified)
 	}
 
 	w.Write([]byte(ruser.ToJson()))

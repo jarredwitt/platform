@@ -4,6 +4,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -14,6 +15,83 @@ import (
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
 )
+
+func CreateUserWithHash(user *model.User, hash string, data string) (*model.User, *model.AppError) {
+	props := model.MapFromJson(strings.NewReader(data))
+
+	if !model.ComparePassword(hash, fmt.Sprintf("%v:%v", data, utils.Cfg.EmailSettings.InviteSalt)) {
+		return nil, model.NewLocAppError("CreateUserWithHash", "api.user.create_user.signup_link_invalid.app_error", nil, "")
+	}
+
+	if t, err := strconv.ParseInt(props["time"], 10, 64); err != nil || model.GetMillis()-t > 1000*60*60*48 { // 48 hours
+		return nil, model.NewLocAppError("CreateUserWithHash", "api.user.create_user.signup_link_expired.app_error", nil, "")
+	}
+
+	teamId := props["id"]
+
+	var team *model.Team
+	if result := <-Srv.Store.Team().Get(teamId); result.Err != nil {
+		return nil, result.Err
+	} else {
+		team = result.Data.(*model.Team)
+	}
+
+	user.Email = props["email"]
+	user.EmailVerified = true
+
+	var ruser *model.User
+	var err *model.AppError
+	if ruser, err = CreateUser(user); err != nil {
+		return nil, err
+	}
+
+	if err := JoinUserToTeam(team, ruser); err != nil {
+		return nil, err
+	}
+
+	AddDirectChannels(team.Id, ruser)
+
+	return ruser, nil
+}
+
+func CreateUserWithInviteId(user *model.User, inviteId string) (*model.User, *model.AppError) {
+	var team *model.Team
+	if result := <-Srv.Store.Team().GetByInviteId(inviteId); result.Err != nil {
+		return nil, result.Err
+	} else {
+		team = result.Data.(*model.Team)
+	}
+
+	var ruser *model.User
+	var err *model.AppError
+	if ruser, err = CreateUser(user); err != nil {
+		return nil, err
+	}
+
+	if err := JoinUserToTeam(team, ruser); err != nil {
+		return nil, err
+	}
+
+	AddDirectChannels(team.Id, ruser)
+
+	return ruser, nil
+}
+
+func IsFirstUserAccount() bool {
+	if SessionCacheLength() == 0 {
+		if cr := <-Srv.Store.User().GetTotalUsersCount(); cr.Err != nil {
+			l4g.Error(cr.Err)
+			return false
+		} else {
+			count := cr.Data.(int64)
+			if count <= 0 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
 
 func CreateUser(user *model.User) (*model.User, *model.AppError) {
 

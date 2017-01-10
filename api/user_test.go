@@ -208,7 +208,10 @@ func TestLogin(t *testing.T) {
 	data := model.MapToJson(props)
 	hash := model.HashPassword(fmt.Sprintf("%v:%v", data, utils.Cfg.EmailSettings.InviteSalt))
 
-	ruser2, _ := Client.CreateUserFromSignup(&user2, data, hash)
+	ruser2, err := Client.CreateUserFromSignup(&user2, data, hash)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if _, err := Client.Login(ruser2.Data.(*model.User).Email, user2.Password); err != nil {
 		t.Fatal("From verfied hash")
