@@ -605,17 +605,17 @@ func Logout(c *Context, w http.ResponseWriter, r *http.Request) {
 
 func getMe(c *Context, w http.ResponseWriter, r *http.Request) {
 
-	if result := <-app.Srv.Store.User().Get(c.Session.UserId); result.Err != nil {
-		c.Err = result.Err
+	if user, err := app.GetUser(c.Session.UserId); err != nil {
+		c.Err = err
 		c.RemoveSessionCookie(w, r)
 		l4g.Error(utils.T("api.user.get_me.getting.error"), c.Session.UserId)
 		return
-	} else if HandleEtag(result.Data.(*model.User).Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress), "Get Me", w, r) {
+	} else if HandleEtag(user.Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress), "Get Me", w, r) {
 		return
 	} else {
-		result.Data.(*model.User).Sanitize(map[string]bool{})
-		w.Header().Set(model.HEADER_ETAG_SERVER, result.Data.(*model.User).Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress))
-		w.Write([]byte(result.Data.(*model.User).ToJson()))
+		user.Sanitize(map[string]bool{})
+		w.Header().Set(model.HEADER_ETAG_SERVER, user.Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress))
+		w.Write([]byte(user.ToJson()))
 		return
 	}
 }
@@ -624,59 +624,36 @@ func getInitialLoad(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	il := model.InitialLoad{}
 
-	var cchan store.StoreChannel
+	if len(c.Session.UserId) != 0 {
+		var err *model.AppError
+
+		il.User, err = app.GetUser(c.Session.UserId)
+		if err != nil {
+			c.Err = err
+			return
+		}
+		il.User.Sanitize(map[string]bool{})
+
+		il.Preferences, err = app.GetPreferencesForUser(c.Session.Id)
+
+		il.Teams, err = app.GetTeamsForUser(c.Session.UserId)
+		if err != nil {
+			c.Err = err
+			return
+		}
+
+		for _, team := range il.Teams {
+			team.Sanitize()
+		}
+
+		il.TeamMembers = c.Session.TeamMembers
+	}
 
 	if app.SessionCacheLength() == 0 {
 		// Below is a special case when intializating a new server
 		// Lets check to make sure the server is really empty
 
-		cchan = app.Srv.Store.User().GetTotalUsersCount()
-	}
-
-	if len(c.Session.UserId) != 0 {
-		uchan := app.Srv.Store.User().Get(c.Session.UserId)
-		pchan := app.Srv.Store.Preference().GetAll(c.Session.UserId)
-		tchan := app.Srv.Store.Team().GetTeamsByUserId(c.Session.UserId)
-
-		il.TeamMembers = c.Session.TeamMembers
-
-		if ru := <-uchan; ru.Err != nil {
-			c.Err = ru.Err
-			return
-		} else {
-			il.User = ru.Data.(*model.User)
-			il.User.Sanitize(map[string]bool{})
-		}
-
-		if rp := <-pchan; rp.Err != nil {
-			c.Err = rp.Err
-			return
-		} else {
-			il.Preferences = rp.Data.(model.Preferences)
-		}
-
-		if rt := <-tchan; rt.Err != nil {
-			c.Err = rt.Err
-			return
-		} else {
-			il.Teams = rt.Data.([]*model.Team)
-
-			for _, team := range il.Teams {
-				team.Sanitize()
-			}
-		}
-	}
-
-	if cchan != nil {
-		if cr := <-cchan; cr.Err != nil {
-			c.Err = cr.Err
-			return
-		} else {
-			count := cr.Data.(int64)
-			if count <= 0 {
-				il.NoAccounts = true
-			}
-		}
+		il.NoAccounts = app.IsFirstUserAccount()
 	}
 
 	il.ClientCfg = utils.ClientCfg
@@ -694,16 +671,19 @@ func getUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["user_id"]
 
-	if result := <-app.Srv.Store.User().Get(id); result.Err != nil {
-		c.Err = result.Err
+	var user *model.User
+	var err *model.AppError
+
+	if user, err = app.GetUser(id); err != nil {
+		c.Err = err
 		return
-	} else if HandleEtag(result.Data.(*model.User).Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress), "Get User", w, r) {
+	} else if HandleEtag(user.Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress), "Get User", w, r) {
 		return
 	} else {
-		user := sanitizeProfile(c, result.Data.(*model.User))
+		sanitizeProfile(c, user)
 
 		w.Header().Set(model.HEADER_ETAG_SERVER, user.Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress))
-		w.Write([]byte(result.Data.(*model.User).ToJson()))
+		w.Write([]byte(user.ToJson()))
 		return
 	}
 }
@@ -712,16 +692,19 @@ func getByUsername(c *Context, w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	username := params["username"]
 
-	if result := <-app.Srv.Store.User().GetByUsername(username); result.Err != nil {
-		c.Err = result.Err
+	var user *model.User
+	var err *model.AppError
+
+	if user, err = app.GetUserByUsername(username); err != nil {
+		c.Err = err
 		return
-	} else if HandleEtag(result.Data.(*model.User).Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress), "Get By Username", w, r) {
+	} else if HandleEtag(user.Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress), "Get By Username", w, r) {
 		return
 	} else {
-		user := sanitizeProfile(c, result.Data.(*model.User))
+		sanitizeProfile(c, user)
 
 		w.Header().Set(model.HEADER_ETAG_SERVER, user.Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress))
-		w.Write([]byte(result.Data.(*model.User).ToJson()))
+		w.Write([]byte(user.ToJson()))
 		return
 	}
 }
@@ -730,16 +713,19 @@ func getByEmail(c *Context, w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	email := params["email"]
 
-	if result := <-app.Srv.Store.User().GetByEmail(email); result.Err != nil {
-		c.Err = result.Err
+	var user *model.User
+	var err *model.AppError
+
+	if user, err = app.GetUserByEmail(email); err != nil {
+		c.Err = err
 		return
-	} else if HandleEtag(result.Data.(*model.User).Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress), "Get By Email", w, r) {
+	} else if HandleEtag(user.Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress), "Get By Email", w, r) {
 		return
 	} else {
-		user := sanitizeProfile(c, result.Data.(*model.User))
+		sanitizeProfile(c, user)
 
 		w.Header().Set(model.HEADER_ETAG_SERVER, user.Etag(utils.Cfg.PrivacySettings.ShowFullName, utils.Cfg.PrivacySettings.ShowEmailAddress))
-		w.Write([]byte(result.Data.(*model.User).ToJson()))
+		w.Write([]byte(user.ToJson()))
 		return
 	}
 }
@@ -759,17 +745,18 @@ func getProfiles(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	etag := (<-app.Srv.Store.User().GetEtagForAllProfiles()).Data.(string)
+	etag := app.GetUsersEtag()
 	if HandleEtag(etag, "Get Profiles", w, r) {
 		return
 	}
 
-	if result := <-app.Srv.Store.User().GetAllProfiles(offset, limit); result.Err != nil {
-		c.Err = result.Err
+	var profiles map[string]*model.User
+	var profileErr *model.AppError
+
+	if profiles, profileErr = app.GetUsers(offset, limit); profileErr != nil {
+		c.Err = profileErr
 		return
 	} else {
-		profiles := result.Data.(map[string]*model.User)
-
 		for k, p := range profiles {
 			profiles[k] = sanitizeProfile(c, p)
 		}
@@ -801,17 +788,18 @@ func getProfilesInTeam(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	etag := (<-app.Srv.Store.User().GetEtagForProfiles(teamId)).Data.(string)
+	etag := app.GetUsersInTeamEtag(teamId)
 	if HandleEtag(etag, "Get Profiles In Team", w, r) {
 		return
 	}
 
-	if result := <-app.Srv.Store.User().GetProfiles(teamId, offset, limit); result.Err != nil {
-		c.Err = result.Err
+	var profiles map[string]*model.User
+	var profileErr *model.AppError
+
+	if profiles, profileErr = app.GetUsersInTeam(teamId, offset, limit); profileErr != nil {
+		c.Err = profileErr
 		return
 	} else {
-		profiles := result.Data.(map[string]*model.User)
-
 		for k, p := range profiles {
 			profiles[k] = sanitizeProfile(c, p)
 		}
@@ -847,12 +835,13 @@ func getProfilesInChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if result := <-app.Srv.Store.User().GetProfilesInChannel(channelId, offset, limit, false); result.Err != nil {
-		c.Err = result.Err
+	var profiles map[string]*model.User
+	var profileErr *model.AppError
+
+	if profiles, err = app.GetUsersInChannel(channelId, offset, limit); profileErr != nil {
+		c.Err = profileErr
 		return
 	} else {
-		profiles := result.Data.(map[string]*model.User)
-
 		for k, p := range profiles {
 			profiles[k] = sanitizeProfile(c, p)
 		}
@@ -887,12 +876,13 @@ func getProfilesNotInChannel(c *Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if result := <-app.Srv.Store.User().GetProfilesNotInChannel(c.TeamId, channelId, offset, limit); result.Err != nil {
-		c.Err = result.Err
+	var profiles map[string]*model.User
+	var profileErr *model.AppError
+
+	if profiles, err = app.GetUsersNotInChannel(c.TeamId, channelId, offset, limit); profileErr != nil {
+		c.Err = profileErr
 		return
 	} else {
-		profiles := result.Data.(map[string]*model.User)
-
 		for k, p := range profiles {
 			profiles[k] = sanitizeProfile(c, p)
 		}

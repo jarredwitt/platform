@@ -229,6 +229,22 @@ func GetUser(userId string) (*model.User, *model.AppError) {
 	}
 }
 
+func GetUserByUsername(username string) (*model.User, *model.AppError) {
+	if result := <-Srv.Store.User().GetByUsername(username); result.Err != nil {
+		return nil, result.Err
+	} else {
+		return result.Data.(*model.User), nil
+	}
+}
+
+func GetUserByEmail(email string) (*model.User, *model.AppError) {
+	if result := <-Srv.Store.User().GetByEmail(email); result.Err != nil {
+		return nil, result.Err
+	} else {
+		return result.Data.(*model.User), nil
+	}
+}
+
 func GetUserByAuth(authData *string, authService string) (*model.User, *model.AppError) {
 	if result := <-Srv.Store.User().GetByAuth(authData, authService); result.Err != nil {
 		return nil, result.Err
@@ -265,6 +281,46 @@ func GetUserForLogin(loginId string, onlyLdap bool) (*model.User, *model.AppErro
 		}
 	} else {
 		return result.Data.(*model.User), nil
+	}
+}
+
+func GetUsers(offset int, limit int) (map[string]*model.User, *model.AppError) {
+	if result := <-Srv.Store.User().GetAllProfiles(offset, limit); result.Err != nil {
+		return nil, result.Err
+	} else {
+		return result.Data.(map[string]*model.User), nil
+	}
+}
+
+func GetUsersEtag() string {
+	return (<-Srv.Store.User().GetEtagForAllProfiles()).Data.(string)
+}
+
+func GetUsersInTeam(teamId string, offset int, limit int) (map[string]*model.User, *model.AppError) {
+	if result := <-Srv.Store.User().GetProfiles(teamId, offset, limit); result.Err != nil {
+		return nil, result.Err
+	} else {
+		return result.Data.(map[string]*model.User), nil
+	}
+}
+
+func GetUsersInTeamEtag(teamId string) string {
+	return (<-Srv.Store.User().GetEtagForProfiles(teamId)).Data.(string)
+}
+
+func GetUsersInChannel(channelId string, offset int, limit int) (map[string]*model.User, *model.AppError) {
+	if result := <-Srv.Store.User().GetProfilesInChannel(channelId, offset, limit, false); result.Err != nil {
+		return nil, result.Err
+	} else {
+		return result.Data.(map[string]*model.User), nil
+	}
+}
+
+func GetUsersNotInChannel(teamId string, channelId string, offset int, limit int) (map[string]*model.User, *model.AppError) {
+	if result := <-Srv.Store.User().GetProfilesNotInChannel(teamId, channelId, offset, limit); result.Err != nil {
+		return nil, result.Err
+	} else {
+		return result.Data.(map[string]*model.User), nil
 	}
 }
 
