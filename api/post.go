@@ -615,7 +615,7 @@ func getFileInfosForPost(c *Context, w http.ResponseWriter, r *http.Request) {
 
 		if len(post.Filenames) > 0 {
 			// The post has Filenames that need to be replaced with FileInfos
-			infos = migrateFilenamesToFileInfos(post)
+			infos = app.MigrateFilenamesToFileInfos(post)
 		}
 	}
 

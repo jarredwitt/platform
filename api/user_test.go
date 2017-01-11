@@ -670,7 +670,7 @@ func TestUserCreateImage(t *testing.T) {
 	th := Setup()
 	Client := th.CreateClient()
 
-	b, err := createProfileImage("Corey Hulen", "eo1zkdr96pdj98pjmq8zy35wba")
+	b, err := app.CreateProfileImage("Corey Hulen", "eo1zkdr96pdj98pjmq8zy35wba")
 	if err != nil {
 		t.Fatal(err)
 	}

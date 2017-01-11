@@ -7,16 +7,12 @@ import (
 	"bytes"
 	b64 "encoding/base64"
 	"fmt"
-	"hash/fnv"
 	"html/template"
 	"image"
-	"image/color"
-	"image/draw"
 	_ "image/gif"
 	_ "image/jpeg"
 	"image/png"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -25,7 +21,6 @@ import (
 
 	l4g "github.com/alecthomas/log4go"
 	"github.com/disintegration/imaging"
-	"github.com/golang/freetype"
 	"github.com/gorilla/mux"
 	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/einterfaces"
@@ -899,18 +894,10 @@ func getAudits(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userChan := app.Srv.Store.User().Get(id)
-	auditChan := app.Srv.Store.Audit().Get(id, 20)
-
-	if c.Err = (<-userChan).Err; c.Err != nil {
-		return
-	}
-
-	if result := <-auditChan; result.Err != nil {
-		c.Err = result.Err
+	if audits, err := app.GetAudits(id, 20); err != nil {
+		c.Err = err
 		return
 	} else {
-		audits := result.Data.(model.Audits)
 		etag := audits.Etag()
 
 		if HandleEtag(etag, "Get Audits", w, r) {
@@ -926,128 +913,29 @@ func getAudits(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func createProfileImage(username string, userId string) ([]byte, *model.AppError) {
-	colors := []color.NRGBA{
-		{197, 8, 126, 255},
-		{227, 207, 18, 255},
-		{28, 181, 105, 255},
-		{35, 188, 224, 255},
-		{116, 49, 196, 255},
-		{197, 8, 126, 255},
-		{197, 19, 19, 255},
-		{250, 134, 6, 255},
-		{227, 207, 18, 255},
-		{123, 201, 71, 255},
-		{28, 181, 105, 255},
-		{35, 188, 224, 255},
-		{116, 49, 196, 255},
-		{197, 8, 126, 255},
-		{197, 19, 19, 255},
-		{250, 134, 6, 255},
-		{227, 207, 18, 255},
-		{123, 201, 71, 255},
-		{28, 181, 105, 255},
-		{35, 188, 224, 255},
-		{116, 49, 196, 255},
-		{197, 8, 126, 255},
-		{197, 19, 19, 255},
-		{250, 134, 6, 255},
-		{227, 207, 18, 255},
-		{123, 201, 71, 255},
-	}
-
-	h := fnv.New32a()
-	h.Write([]byte(userId))
-	seed := h.Sum32()
-
-	initial := string(strings.ToUpper(username)[0])
-
-	fontBytes, err := ioutil.ReadFile(utils.FindDir("fonts") + utils.Cfg.FileSettings.InitialFont)
-	if err != nil {
-		return nil, model.NewLocAppError("createProfileImage", "api.user.create_profile_image.default_font.app_error", nil, err.Error())
-	}
-	font, err := freetype.ParseFont(fontBytes)
-	if err != nil {
-		return nil, model.NewLocAppError("createProfileImage", "api.user.create_profile_image.default_font.app_error", nil, err.Error())
-	}
-
-	width := int(utils.Cfg.FileSettings.ProfileWidth)
-	height := int(utils.Cfg.FileSettings.ProfileHeight)
-	color := colors[int64(seed)%int64(len(colors))]
-	dstImg := image.NewRGBA(image.Rect(0, 0, width, height))
-	srcImg := image.White
-	draw.Draw(dstImg, dstImg.Bounds(), &image.Uniform{color}, image.ZP, draw.Src)
-	size := float64((width + height) / 4)
-
-	c := freetype.NewContext()
-	c.SetFont(font)
-	c.SetFontSize(size)
-	c.SetClip(dstImg.Bounds())
-	c.SetDst(dstImg)
-	c.SetSrc(srcImg)
-
-	pt := freetype.Pt(width/6, height*2/3)
-	_, err = c.DrawString(initial, pt)
-	if err != nil {
-		return nil, model.NewLocAppError("createProfileImage", "api.user.create_profile_image.initial.app_error", nil, err.Error())
-	}
-
-	buf := new(bytes.Buffer)
-
-	if imgErr := png.Encode(buf, dstImg); imgErr != nil {
-		return nil, model.NewLocAppError("createProfileImage", "api.user.create_profile_image.encode.app_error", nil, imgErr.Error())
-	} else {
-		return buf.Bytes(), nil
-	}
-}
-
 func getProfileImage(c *Context, w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["user_id"]
-	readFailed := false
 
 	var etag string
 
-	if result := <-app.Srv.Store.User().Get(id); result.Err != nil {
-		c.Err = result.Err
+	if user, err := app.GetUser(id); err != nil {
+		c.Err = err
 		return
 	} else {
-		var img []byte
-		etag = strconv.FormatInt(result.Data.(*model.User).LastPictureUpdate, 10)
+		etag = strconv.FormatInt(user.LastPictureUpdate, 10)
 		if HandleEtag(etag, "Profile Image", w, r) {
 			return
 		}
 
-		if len(utils.Cfg.FileSettings.DriverName) == 0 {
-			var err *model.AppError
-			if img, err = createProfileImage(result.Data.(*model.User).Username, id); err != nil {
-				c.Err = err
-				return
-			}
-		} else {
-			path := "users/" + id + "/profile.png"
-
-			if data, err := ReadFile(path); err != nil {
-				readFailed = true
-
-				if img, err = createProfileImage(result.Data.(*model.User).Username, id); err != nil {
-					c.Err = err
-					return
-				}
-
-				if result.Data.(*model.User).LastPictureUpdate == 0 {
-					if err := WriteFile(img, path); err != nil {
-						c.Err = err
-						return
-					}
-				}
-
-			} else {
-				img = data
-			}
+		var img []byte
+		img, err = app.GetProfileImage(user)
+		if err != nil {
+			c.Err = err
+			return
 		}
 
-		if c.Session.UserId == id || readFailed {
+		if c.Session.UserId == id {
 			w.Header().Set("Cache-Control", "max-age=300, public") // 5 mins
 		} else {
 			w.Header().Set("Cache-Control", "max-age=86400, public") // 24 hrs
@@ -1132,7 +1020,7 @@ func uploadProfileImage(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	path := "users/" + c.Session.UserId + "/profile.png"
 
-	if err := WriteFile(buf.Bytes(), path); err != nil {
+	if err := app.WriteFile(buf.Bytes(), path); err != nil {
 		c.Err = model.NewLocAppError("uploadProfileImage", "api.user.upload_profile_user.upload_profile.app_error", nil, "")
 		return
 	}

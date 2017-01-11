@@ -4,13 +4,23 @@
 package app
 
 import (
+	"bytes"
 	"fmt"
+	"hash/fnv"
+	"image"
+	"image/color"
+	"image/draw"
+	_ "image/gif"
+	_ "image/jpeg"
+	"image/png"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 
 	l4g "github.com/alecthomas/log4go"
+	"github.com/golang/freetype"
 	"github.com/mattermost/platform/einterfaces"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
@@ -363,4 +373,109 @@ func DeactivateMfa(userId string) *model.AppError {
 	}
 
 	return nil
+}
+
+func CreateProfileImage(username string, userId string) ([]byte, *model.AppError) {
+	colors := []color.NRGBA{
+		{197, 8, 126, 255},
+		{227, 207, 18, 255},
+		{28, 181, 105, 255},
+		{35, 188, 224, 255},
+		{116, 49, 196, 255},
+		{197, 8, 126, 255},
+		{197, 19, 19, 255},
+		{250, 134, 6, 255},
+		{227, 207, 18, 255},
+		{123, 201, 71, 255},
+		{28, 181, 105, 255},
+		{35, 188, 224, 255},
+		{116, 49, 196, 255},
+		{197, 8, 126, 255},
+		{197, 19, 19, 255},
+		{250, 134, 6, 255},
+		{227, 207, 18, 255},
+		{123, 201, 71, 255},
+		{28, 181, 105, 255},
+		{35, 188, 224, 255},
+		{116, 49, 196, 255},
+		{197, 8, 126, 255},
+		{197, 19, 19, 255},
+		{250, 134, 6, 255},
+		{227, 207, 18, 255},
+		{123, 201, 71, 255},
+	}
+
+	h := fnv.New32a()
+	h.Write([]byte(userId))
+	seed := h.Sum32()
+
+	initial := string(strings.ToUpper(username)[0])
+
+	fontBytes, err := ioutil.ReadFile(utils.FindDir("fonts") + utils.Cfg.FileSettings.InitialFont)
+	if err != nil {
+		return nil, model.NewLocAppError("CreateProfileImage", "api.user.create_profile_image.default_font.app_error", nil, err.Error())
+	}
+	font, err := freetype.ParseFont(fontBytes)
+	if err != nil {
+		return nil, model.NewLocAppError("CreateProfileImage", "api.user.create_profile_image.default_font.app_error", nil, err.Error())
+	}
+
+	width := int(utils.Cfg.FileSettings.ProfileWidth)
+	height := int(utils.Cfg.FileSettings.ProfileHeight)
+	color := colors[int64(seed)%int64(len(colors))]
+	dstImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	srcImg := image.White
+	draw.Draw(dstImg, dstImg.Bounds(), &image.Uniform{color}, image.ZP, draw.Src)
+	size := float64((width + height) / 4)
+
+	c := freetype.NewContext()
+	c.SetFont(font)
+	c.SetFontSize(size)
+	c.SetClip(dstImg.Bounds())
+	c.SetDst(dstImg)
+	c.SetSrc(srcImg)
+
+	pt := freetype.Pt(width/6, height*2/3)
+	_, err = c.DrawString(initial, pt)
+	if err != nil {
+		return nil, model.NewLocAppError("CreateProfileImage", "api.user.create_profile_image.initial.app_error", nil, err.Error())
+	}
+
+	buf := new(bytes.Buffer)
+
+	if imgErr := png.Encode(buf, dstImg); imgErr != nil {
+		return nil, model.NewLocAppError("CreateProfileImage", "api.user.create_profile_image.encode.app_error", nil, imgErr.Error())
+	} else {
+		return buf.Bytes(), nil
+	}
+}
+
+func GetProfileImage(user *model.User) ([]byte, *model.AppError) {
+	var img []byte
+
+	if len(utils.Cfg.FileSettings.DriverName) == 0 {
+		var err *model.AppError
+		if img, err = CreateProfileImage(user.Username, user.Id); err != nil {
+			return nil, err
+		}
+	} else {
+		path := "users/" + user.Id + "/profile.png"
+
+		if data, err := ReadFile(path); err != nil {
+			if img, err = CreateProfileImage(user.Username, user.Id); err != nil {
+				return nil, err
+			}
+
+			if user.LastPictureUpdate == 0 {
+				if err := WriteFile(img, path); err != nil {
+					return nil, err
+				}
+			}
+
+		} else {
+			img = data
+		}
+	}
+
+	return img, nil
 }
