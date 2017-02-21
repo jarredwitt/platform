@@ -311,13 +311,18 @@
 
     &.scrolling {
         @include translateY(0);
-        @include opacity(.8);
+        @include opacity(.9);
+    }
+
+    &.rhs {
+        top: 98px;
     }
 
     > div {
         @include border-radius(3px);
         @include font-smoothing(initial);
         background: $primary-color;
+        border: 1px solid;
         color: $white;
         display: inline-block;
         font-size: 12px;
@@ -400,6 +405,10 @@
             &:active {
                 @include opacity(.75);
             }
+
+            &.disabled {
+                color: grey;
+            }
         }
 
         .custom-textarea {
@@ -436,6 +445,15 @@
             &:active {
                 @include opacity(.9);
                 box-shadow: none;
+            }
+
+            &.btn-file__disabled {
+                @include opacity(.1);
+
+                &:hover,
+                &:active {
+                    @include opacity(.1);
+                }
             }
         }
 
@@ -552,7 +570,22 @@
         }
 
         .status-wrapper {
+            cursor: auto;
             height: 14px;
+
+            .status {
+                bottom: auto;
+                height: 13px;
+                left: -2px;
+                position: relative;
+                right: auto;
+                top: auto;
+                width: 13px;
+            }
+
+            svg {
+                top: 1px;
+            }
 
             &:after {
                 bottom: 0;
@@ -560,9 +593,9 @@
         }
 
         blockquote {
-            display: inline-block;
             font-size: 1em;
             margin-left: 0;
+            margin-top: 1.3em;
             padding: 3px 0 0 25px;
             vertical-align: top;
 
@@ -570,6 +603,12 @@
                 font-size: 15px;
                 left: 4px;
                 top: 2px;
+            }
+        }
+
+        .search-item-snippet {
+            blockquote {
+                margin-top: 0;
             }
         }
 
@@ -598,7 +637,17 @@
             }
 
             p + p {
-                margin-top: 1em;
+                margin: 1em 0;
+
+                &:last-of-type {
+                    margin-bottom: 0;
+                }
+            }
+
+            span {
+                > p:first-child {
+                    margin-bottom: 1em;
+                }
             }
 
             ol,
@@ -667,11 +716,8 @@
             padding-top: 3px;
             width: 16px;
 
-            img,
-            svg {
-                height: 20px;
-                visibility: hidden;
-                width: 9px;
+            img {
+                display: none;
             }
         }
     }
@@ -684,25 +730,23 @@
         position: relative;
     }
 
+    .post--edited {
+        p {
+            &:last-child {
+                display: inline-block;
+            }
+        }
+    }
+
     p {
-        font-size: .97em;
+        font-size: 13.5px;
         line-height: 1.6em;
         margin: 0;
         white-space: pre-wrap;
-
-        &:last-child {
-            margin-bottom: .5em;
-        }
     }
 
     .post__header--info {
         padding: 0;
-    }
-
-    span {
-        p:last-child {
-            margin-bottom: .5em;
-        }
     }
 
     &.post--root {
@@ -890,9 +934,11 @@
         text-align: right;
         width: 53px;
 
-        svg {
-            height: 32px;
-            width: 32px;
+        .icon {
+            svg {
+                height: 32px;
+                width: 32px;
+            }
         }
 
         path {
@@ -978,17 +1024,15 @@
         width: 100%;
         word-wrap: break-word;
 
-        p {
-            margin: 0 0 .4em;
+        div {
+            margin-bottom: .4em;
         }
 
         p + p {
-            margin-top: 1.4em;
-        }
+            margin: 1.2em 0 0;
 
-        li {
-            > p {
-                margin-top: 10px;
+            &:last-of-type {
+                margin-bottom: 0;
             }
         }
 
@@ -998,7 +1042,7 @@
 
         ul,
         ol {
-            font-size: .97em;
+            font-size: 13.5px;
             margin-bottom: .4em;
             padding-left: 20px;
 
@@ -1049,8 +1093,13 @@
             }
         }
 
+        ul + p,
+        ol + p {
+            margin-top: 1.2em;
+        }
+
         .pending-post-actions {
-            background: alpha-property($black, .7);
+            background: alpha-color($black, .7);
             color: $white;
             font-size: .9em;
             padding: 5px 7px;
@@ -1061,6 +1110,49 @@
 
             a {
                 color: $white;
+            }
+        }
+
+        span {
+            &.edited {
+                @include opacity(.6);
+                font-size: .87em;
+            }
+        }
+
+        .post-reaction-list {
+            min-height: 30px;
+        }
+
+        .post-reaction {
+            @include user-select(none);
+            @include border-radius(3px);
+            border: 1px solid $primary-color;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 11px;
+            height: 23px;
+            margin-bottom: 5px;
+            margin-right: 5px;
+            padding: 0 4px 0 3px;
+
+            .post-reaction__emoji {
+                margin: 2px 3px 0 0;
+                max-height: 16px;
+                max-width: 16px;
+                vertical-align: middle;
+            }
+
+            .post-reaction__count {
+                line-height: 10px;
+                position: relative;
+                top: 3px;
+            }
+
+            &--current-user {
+                .post-reaction__count {
+                    font-weight: 600;
+                }
             }
         }
     }
@@ -1107,6 +1199,23 @@
     .post__time {
         @include opacity(.6);
         font-size: .9em;
+    }
+
+    .post__permalink {
+        color: inherit;
+
+        &:hover,
+        &:focus {
+            color: inherit;
+        }
+
+        &:focus {
+            text-decoration: none;
+        }
+
+        &:hover {
+            text-decoration: underline;
+        }
     }
 
     .post-loading-gif {
@@ -1250,36 +1359,4 @@
 .permalink-popover {
     margin-left: 50px !important;
     min-width: 320px;
-}
-
-.post-reaction {
-    @include user-select(none);
-    @include border-radius(3px);
-    border: 1px solid $primary-color;
-    cursor: pointer;
-    display: inline-block;
-    font-size: 11px;
-    height: 23px;
-    padding: 0 4px 0 3px;
-    margin-right: 5px;
-    margin-bottom: 5px;
-
-    .post-reaction__emoji {
-        height: 16px;
-        margin: 2px 3px 0 0;
-        vertical-align: top;
-        width: 16px;
-    }
-
-    .post-reaction__count {
-        line-height: 10px;
-        position: relative;
-        top: 3px;
-    }
-
-    &--current-user {
-        .post-reaction__count {
-            font-weight: 600;
-        }
-    }
 }

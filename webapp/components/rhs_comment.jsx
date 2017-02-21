@@ -9,16 +9,16 @@ import ProfilePicture from 'components/profile_picture.jsx';
 import ReactionListContainer from 'components/post_view/components/reaction_list_container.jsx';
 import RhsDropdown from 'components/rhs_dropdown.jsx';
 
-import TeamStore from 'stores/team_store.jsx';
-import UserStore from 'stores/user_store.jsx';
-
 import * as GlobalActions from 'actions/global_actions.jsx';
 import {flagPost, unflagPost} from 'actions/post_actions.jsx';
+
+import TeamStore from 'stores/team_store.jsx';
 
 import * as Utils from 'utils/utils.jsx';
 import * as PostUtils from 'utils/post_utils.jsx';
 
 import Constants from 'utils/constants.jsx';
+import DelayedAction from 'utils/delayed_action.jsx';
 import {Tooltip, OverlayTrigger} from 'react-bootstrap';
 
 import {FormattedMessage} from 'react-intl';
@@ -26,6 +26,7 @@ import {FormattedMessage} from 'react-intl';
 import loadingGif from 'images/load.gif';
 
 import React from 'react';
+import {Link} from 'react-router/es6';
 
 export default class RhsComment extends React.Component {
     constructor(props) {
@@ -36,12 +37,36 @@ export default class RhsComment extends React.Component {
         this.flagPost = this.flagPost.bind(this);
         this.unflagPost = this.unflagPost.bind(this);
 
-        this.state = {};
+        this.canEdit = false;
+        this.canDelete = false;
+        this.editDisableAction = new DelayedAction(this.handleEditDisable);
+
+        this.state = {
+            currentTeamDisplayName: TeamStore.getCurrent().name,
+            width: '',
+            height: ''
+        };
+    }
+
+    componentDidMount() {
+        window.addEventListener('resize', () => {
+            Utils.updateWindowDimensions(this);
+        });
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener('resize', () => {
+            Utils.updateWindowDimensions(this);
+        });
     }
 
     handlePermalink(e) {
         e.preventDefault();
         GlobalActions.showGetPostLinkModal(this.props.post);
+    }
+
+    handleEditDisable() {
+        this.canEdit = false;
     }
 
     removePost() {
@@ -110,8 +135,8 @@ export default class RhsComment extends React.Component {
             return '';
         }
 
-        const isOwner = this.props.currentUser.id === post.user_id;
-        var isAdmin = TeamStore.isTeamAdminForCurrentTeam() || UserStore.isSystemAdminForCurrentUser();
+        this.canDelete = PostUtils.canDeletePost(post);
+        this.canEdit = PostUtils.canEditPost(post, this.editDisableAction);
 
         var dropdownContents = [];
 
@@ -170,7 +195,7 @@ export default class RhsComment extends React.Component {
             </li>
         );
 
-        if (isOwner || isAdmin) {
+        if (this.canDelete) {
             dropdownContents.push(
                 <li
                     role='presentation'
@@ -193,11 +218,12 @@ export default class RhsComment extends React.Component {
             );
         }
 
-        if (isOwner) {
+        if (this.canEdit) {
             dropdownContents.push(
                 <li
                     role='presentation'
                     key='edit-button'
+                    className={this.canEdit ? '' : 'hide'}
                 >
                     <a
                         href='#'
@@ -226,6 +252,31 @@ export default class RhsComment extends React.Component {
         return (
             <RhsDropdown dropdownContents={dropdownContents}/>
         );
+    }
+
+    timeTag(post, timeOptions) {
+        return (
+            <time
+                className='post__time'
+                dateTime={Utils.getDateForUnixTicks(post.create_at).toISOString()}
+            >
+                {Utils.getDateForUnixTicks(post.create_at).toLocaleString('en', timeOptions)}
+            </time>
+        );
+    }
+
+    renderTimeTag(post, timeOptions) {
+        return Utils.isMobile() ?
+            this.timeTag(post, timeOptions) :
+            (
+                <Link
+                    to={`/${this.state.currentTeamDisplayName}/pl/${post.id}`}
+                    target='_blank'
+                    className='post__permalink'
+                >
+                    {this.timeTag(post, timeOptions)}
+                </Link>
+            );
     }
 
     render() {
@@ -278,7 +329,12 @@ export default class RhsComment extends React.Component {
             userProfile = (
                 <UserProfile
                     user={{}}
-                    overwriteName={Constants.SYSTEM_MESSAGE_PROFILE_NAME}
+                    overwriteName={
+                        <FormattedMessage
+                            id='post_info.system'
+                            defaultMessage='System'
+                        />
+                    }
                     overwriteImage={Constants.SYSTEM_MESSAGE_PROFILE_IMAGE}
                     disablePopover={true}
                 />
@@ -287,7 +343,6 @@ export default class RhsComment extends React.Component {
 
         let loading;
         let postClass = '';
-        let message = <PostMessageContainer post={post}/>;
 
         if (post.state === Constants.POST_FAILED) {
             postClass += ' post-fail';
@@ -300,13 +355,10 @@ export default class RhsComment extends React.Component {
                     src={loadingGif}
                 />
             );
-        } else if (this.props.post.state === Constants.POST_DELETED) {
-            message = (
-                <FormattedMessage
-                    id='post_body.deleted'
-                    defaultMessage='(message deleted)'
-                />
-            );
+        }
+
+        if (PostUtils.isEdited(this.props.post)) {
+            postClass += ' post--edited';
         }
 
         let systemMessageClass = '';
@@ -471,9 +523,7 @@ export default class RhsComment extends React.Component {
                             </li>
                             {botIndicator}
                             <li className='col'>
-                                <time className='post__time'>
-                                    {Utils.getDateForUnixTicks(post.create_at).toLocaleString('en', timeOptions)}
-                                </time>
+                                {this.renderTimeTag(post, timeOptions)}
                                 {flagTrigger}
                             </li>
                             {options}
@@ -481,7 +531,7 @@ export default class RhsComment extends React.Component {
                         <div className='post__body'>
                             <div className={postClass}>
                                 {loading}
-                                {message}
+                                <PostMessageContainer post={post}/>
                             </div>
                             {fileAttachment}
                             <ReactionListContainer

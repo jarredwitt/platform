@@ -8,14 +8,15 @@ import (
 	"crypto/sha1"
 	"crypto/tls"
 	"encoding/base64"
-	l4g "github.com/alecthomas/log4go"
-	"github.com/mattermost/platform/model"
-	"github.com/mattermost/platform/utils"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	l4g "github.com/alecthomas/log4go"
+	"github.com/mattermost/platform/app"
+	"github.com/mattermost/platform/model"
+	"github.com/mattermost/platform/utils"
 )
 
 func InitWebrtc() {
@@ -23,7 +24,7 @@ func InitWebrtc() {
 
 	BaseRoutes.Webrtc.Handle("/token", ApiUserRequired(webrtcToken)).Methods("POST")
 
-	BaseRoutes.WebSocket.Handle("webrtc", ApiWebSocketHandler(webrtcMessage))
+	app.Srv.WebSocketRouter.Handle("webrtc", ApiWebSocketHandler(webrtcMessage))
 }
 
 func webrtcToken(c *Context, w http.ResponseWriter, r *http.Request) {
@@ -60,7 +61,7 @@ func webrtcMessage(req *model.WebSocketRequest) (map[string]interface{}, *model.
 
 	event := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_WEBRTC, "", "", toUserId, nil)
 	event.Data = req.Data
-	go Publish(event)
+	go app.Publish(event)
 
 	return nil, nil
 }
@@ -88,7 +89,7 @@ func getWebrtcToken(sessionId string) (string, *model.AppError) {
 	if rp, err := httpClient.Do(rq); err != nil {
 		return "", model.NewLocAppError("WebRTC.Token", "model.client.connecting.app_error", nil, err.Error())
 	} else if rp.StatusCode >= 300 {
-		defer closeBody(rp)
+		defer app.CloseBody(rp)
 		return "", model.AppErrorFromJson(rp.Body)
 	} else {
 		janusResponse := model.GatewayResponseFromJson(rp.Body)
@@ -105,30 +106,4 @@ func generateTurnPassword(username string, secret string) string {
 	h := hmac.New(sha1.New, key)
 	h.Write([]byte(username))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
-}
-
-func closeBody(r *http.Response) {
-	if r.Body != nil {
-		ioutil.ReadAll(r.Body)
-		r.Body.Close()
-	}
-}
-
-func RevokeWebrtcToken(sessionId string) {
-	token := base64.StdEncoding.EncodeToString([]byte(sessionId))
-	data := make(map[string]string)
-	data["janus"] = "remove_token"
-	data["token"] = token
-	data["transaction"] = model.NewId()
-	data["admin_secret"] = *utils.Cfg.WebrtcSettings.GatewayAdminSecret
-
-	rq, _ := http.NewRequest("POST", *utils.Cfg.WebrtcSettings.GatewayAdminUrl, strings.NewReader(model.MapToJson(data)))
-	rq.Header.Set("Content-Type", "application/json")
-
-	// we do not care about the response
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: *utils.Cfg.ServiceSettings.EnableInsecureOutgoingConnections},
-	}
-	httpClient := &http.Client{Transport: tr}
-	httpClient.Do(rq)
 }

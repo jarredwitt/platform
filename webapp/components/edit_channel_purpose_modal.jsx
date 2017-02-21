@@ -3,14 +3,13 @@
 
 import PreferenceStore from 'stores/preference_store.jsx';
 
-import * as AsyncClient from 'utils/async_client.jsx';
-import Client from 'client/web_client.jsx';
 import Constants from 'utils/constants.jsx';
 import * as Utils from 'utils/utils.jsx';
 
 import React from 'react';
 import {Modal} from 'react-bootstrap';
 import {FormattedMessage} from 'react-intl';
+import {updateChannelPurpose} from 'actions/channel_actions.jsx';
 
 export default class EditChannelPurposeModal extends React.Component {
     constructor(props) {
@@ -64,12 +63,10 @@ export default class EditChannelPurposeModal extends React.Component {
 
         this.setState({submitted: true});
 
-        Client.updateChannelPurpose(
+        updateChannelPurpose(
             this.props.channel.id,
             this.refs.purpose.value.trim(),
             () => {
-                AsyncClient.getChannel(this.props.channel.id);
-
                 this.handleHide();
             },
             (err) => {

@@ -8,7 +8,7 @@ import ChannelStore from 'stores/channel_store.jsx';
 import BrowserStore from 'stores/browser_store.jsx';
 import UserStore from 'stores/user_store.jsx';
 
-import Constants from 'utils/constants.jsx';
+import {Constants, PostTypes} from 'utils/constants.jsx';
 const ActionTypes = Constants.ActionTypes;
 
 const CHANGE_EVENT = 'change';
@@ -23,6 +23,7 @@ class PostStoreClass extends EventEmitter {
         this.selectedPostId = null;
         this.postsInfo = {};
         this.latestPageTime = {};
+        this.earliestPostFromPage = {};
         this.currentFocusedPostId = null;
     }
     emitChange() {
@@ -116,20 +117,8 @@ class PostStoreClass extends EventEmitter {
         return null;
     }
 
-    getEarliestPost(id) {
-        if (this.postsInfo.hasOwnProperty(id)) {
-            const postList = this.postsInfo[id].postList;
-
-            for (let i = postList.order.length - 1; i >= 0; i--) {
-                const postId = postList.order[i];
-
-                if (postList.posts[postId].state !== Constants.POST_DELETED) {
-                    return postList.posts[postId];
-                }
-            }
-        }
-
-        return null;
+    getEarliestPostFromPage(id) {
+        return this.earliestPostFromPage[id];
     }
 
     getLatestPost(id) {
@@ -207,7 +196,7 @@ class PostStoreClass extends EventEmitter {
         return this.currentFocusedPostId;
     }
 
-    storePosts(id, newPosts, checkLatest) {
+    storePosts(id, newPosts, checkLatest, checkEarliest) {
         if (isPostListNull(newPosts)) {
             return;
         }
@@ -222,6 +211,17 @@ class PostStoreClass extends EventEmitter {
             } else if (currentLatest === 0) {
                 // Mark that an empty page was received
                 this.latestPageTime[id] = 1;
+            }
+        }
+
+        if (checkEarliest) {
+            const currentEarliest = this.earliestPostFromPage[id] || {create_at: Number.MAX_SAFE_INTEGER};
+            const orderLength = newPosts.order.length;
+            if (orderLength >= 1) {
+                const newEarliestPost = newPosts.posts[newPosts.order[orderLength - 1]];
+                if (newEarliestPost.create_at < currentEarliest.create_at) {
+                    this.earliestPostFromPage[id] = newEarliestPost;
+                }
             }
         }
 
@@ -616,7 +616,9 @@ class PostStoreClass extends EventEmitter {
 
         if (!joinLeave && postsList) {
             postsList.order = postsList.order.filter((id) => {
-                if (postsList.posts[id].type === Constants.POST_TYPE_JOIN_LEAVE) {
+                const post = postsList.posts[id];
+
+                if (post.type === PostTypes.JOIN_LEAVE || post.type === PostTypes.JOIN_CHANNEL || post.type === PostTypes.LEAVE_CHANNEL) {
                     Reflect.deleteProperty(postsList.posts, id);
 
                     return false;
@@ -638,10 +640,10 @@ PostStore.dispatchToken = AppDispatcher.register((payload) => {
     switch (action.type) {
     case ActionTypes.RECEIVED_POSTS: {
         if (PostStore.currentFocusedPostId !== null && action.isPost) {
-            PostStore.storePosts(PostStore.currentFocusedPostId, makePostListNonNull(action.post_list), action.checkLatest);
+            PostStore.storePosts(PostStore.currentFocusedPostId, makePostListNonNull(action.post_list), action.checkLatest, action.checkEarliest);
             PostStore.checkBounds(PostStore.currentFocusedPostId, action.numRequested, makePostListNonNull(action.post_list), action.before);
         }
-        PostStore.storePosts(action.id, makePostListNonNull(action.post_list), action.checkLatest);
+        PostStore.storePosts(action.id, makePostListNonNull(action.post_list), action.checkLatest, action.checkEarliest);
         PostStore.checkBounds(action.id, action.numRequested, makePostListNonNull(action.post_list), action.before);
         PostStore.emitChange();
         break;

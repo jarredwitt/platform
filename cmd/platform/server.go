@@ -16,6 +16,8 @@ import (
 
 	l4g "github.com/alecthomas/log4go"
 	"github.com/mattermost/platform/api"
+	"github.com/mattermost/platform/api4"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/einterfaces"
 	"github.com/mattermost/platform/manualtesting"
 	"github.com/mattermost/platform/model"
@@ -37,6 +39,12 @@ func runServerCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	// Backwards compatibility with -config flag
+	if flagConfigFile != "" {
+		config = flagConfigFile
+	}
+
 	runServer(config)
 	return nil
 }
@@ -63,9 +71,10 @@ func runServer(configFileLocation string) {
 
 	cmdUpdateDb30()
 
-	api.NewServer()
-	api.InitStores()
+	app.NewServer()
+	app.InitStores()
 	api.InitRouter()
+	api4.InitApi(false)
 	api.InitApi()
 	web.InitWeb()
 
@@ -84,7 +93,7 @@ func runServer(configFileLocation string) {
 
 	resetStatuses()
 
-	api.StartServer()
+	app.StartServer()
 
 	// If we allow testing then listen for manual testing URL hits
 	if utils.Cfg.ServiceSettings.EnableTesting {
@@ -120,7 +129,7 @@ func runServer(configFileLocation string) {
 		einterfaces.GetMetricsInterface().StopServer()
 	}
 
-	api.StopServer()
+	app.StopServer()
 }
 
 func runSecurityAndDiagnosticsJob() {
@@ -129,20 +138,20 @@ func runSecurityAndDiagnosticsJob() {
 }
 
 func resetStatuses() {
-	if result := <-api.Srv.Store.Status().ResetAll(); result.Err != nil {
+	if result := <-app.Srv.Store.Status().ResetAll(); result.Err != nil {
 		l4g.Error(utils.T("mattermost.reset_status.error"), result.Err.Error())
 	}
 }
 
 func setDiagnosticId() {
-	if result := <-api.Srv.Store.System().Get(); result.Err == nil {
+	if result := <-app.Srv.Store.System().Get(); result.Err == nil {
 		props := result.Data.(model.StringMap)
 
 		id := props[model.SYSTEM_DIAGNOSTIC_ID]
 		if len(id) == 0 {
 			id = model.NewId()
 			systemId := &model.System{Name: model.SYSTEM_DIAGNOSTIC_ID, Value: id}
-			<-api.Srv.Store.System().Save(systemId)
+			<-app.Srv.Store.System().Save(systemId)
 		}
 
 		utils.CfgDiagnosticId = id
@@ -151,7 +160,7 @@ func setDiagnosticId() {
 
 func doSecurityAndDiagnostics() {
 	if *utils.Cfg.ServiceSettings.EnableSecurityFixAlert {
-		if result := <-api.Srv.Store.System().Get(); result.Err == nil {
+		if result := <-app.Srv.Store.System().Get(); result.Err == nil {
 			props := result.Data.(model.StringMap)
 			lastSecurityTime, _ := strconv.ParseInt(props[model.SYSTEM_LAST_SECURITY_TIME], 10, 0)
 			currentTime := model.GetMillis()
@@ -176,20 +185,20 @@ func doSecurityAndDiagnostics() {
 
 				systemSecurityLastTime := &model.System{Name: model.SYSTEM_LAST_SECURITY_TIME, Value: strconv.FormatInt(currentTime, 10)}
 				if lastSecurityTime == 0 {
-					<-api.Srv.Store.System().Save(systemSecurityLastTime)
+					<-app.Srv.Store.System().Save(systemSecurityLastTime)
 				} else {
-					<-api.Srv.Store.System().Update(systemSecurityLastTime)
+					<-app.Srv.Store.System().Update(systemSecurityLastTime)
 				}
 
-				if ucr := <-api.Srv.Store.User().GetTotalUsersCount(); ucr.Err == nil {
+				if ucr := <-app.Srv.Store.User().GetTotalUsersCount(); ucr.Err == nil {
 					v.Set(utils.PROP_DIAGNOSTIC_USER_COUNT, strconv.FormatInt(ucr.Data.(int64), 10))
 				}
 
-				if ucr := <-api.Srv.Store.Status().GetTotalActiveUsersCount(); ucr.Err == nil {
+				if ucr := <-app.Srv.Store.Status().GetTotalActiveUsersCount(); ucr.Err == nil {
 					v.Set(utils.PROP_DIAGNOSTIC_ACTIVE_USER_COUNT, strconv.FormatInt(ucr.Data.(int64), 10))
 				}
 
-				if tcr := <-api.Srv.Store.Team().AnalyticsTeamCount(); tcr.Err == nil {
+				if tcr := <-app.Srv.Store.Team().AnalyticsTeamCount(); tcr.Err == nil {
 					v.Set(utils.PROP_DIAGNOSTIC_TEAM_COUNT, strconv.FormatInt(tcr.Data.(int64), 10))
 				}
 
@@ -206,7 +215,7 @@ func doSecurityAndDiagnostics() {
 				for _, bulletin := range bulletins {
 					if bulletin.AppliesToVersion == model.CurrentVersion {
 						if props["SecurityBulletin_"+bulletin.Id] == "" {
-							if results := <-api.Srv.Store.User().GetSystemAdminProfiles(); results.Err != nil {
+							if results := <-app.Srv.Store.User().GetSystemAdminProfiles(); results.Err != nil {
 								l4g.Error(utils.T("mattermost.system_admins.error"))
 								return
 							} else {
@@ -232,7 +241,7 @@ func doSecurityAndDiagnostics() {
 							}
 
 							bulletinSeen := &model.System{Name: "SecurityBulletin_" + bulletin.Id, Value: bulletin.Id}
-							<-api.Srv.Store.System().Save(bulletinSeen)
+							<-app.Srv.Store.System().Save(bulletinSeen)
 						}
 					}
 				}
@@ -251,15 +260,15 @@ func sendServerDiagnostics() {
 	var activeUserCount int64
 	var teamCount int64
 
-	if ucr := <-api.Srv.Store.User().GetTotalUsersCount(); ucr.Err == nil {
+	if ucr := <-app.Srv.Store.User().GetTotalUsersCount(); ucr.Err == nil {
 		userCount = ucr.Data.(int64)
 	}
 
-	if ucr := <-api.Srv.Store.Status().GetTotalActiveUsersCount(); ucr.Err == nil {
+	if ucr := <-app.Srv.Store.Status().GetTotalActiveUsersCount(); ucr.Err == nil {
 		activeUserCount = ucr.Data.(int64)
 	}
 
-	if tcr := <-api.Srv.Store.Team().AnalyticsTeamCount(); tcr.Err == nil {
+	if tcr := <-app.Srv.Store.Team().AnalyticsTeamCount(); tcr.Err == nil {
 		teamCount = tcr.Data.(int64)
 	}
 

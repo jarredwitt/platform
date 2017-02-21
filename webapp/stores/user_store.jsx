@@ -540,6 +540,11 @@ class UserStoreClass extends EventEmitter {
             keys.push('@all');
         }
 
+        const usernameKey = '@' + user.username;
+        if (keys.indexOf(usernameKey) === -1) {
+            keys.push(usernameKey);
+        }
+
         return keys;
     }
 
@@ -576,7 +581,7 @@ class UserStoreClass extends EventEmitter {
         var current = this.getCurrentUser();
 
         if (current) {
-            return Utils.isAdmin(current.roles);
+            return Utils.isSystemAdmin(current.roles);
         }
 
         return false;

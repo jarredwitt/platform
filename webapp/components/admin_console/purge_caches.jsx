@@ -3,9 +3,9 @@
 
 import React from 'react';
 
-import Client from 'client/web_client.jsx';
-
 import {FormattedMessage} from 'react-intl';
+
+import {invalidateAllCaches} from 'actions/admin_actions.jsx';
 
 export default class PurgeCachesButton extends React.Component {
     constructor(props) {
@@ -27,7 +27,7 @@ export default class PurgeCachesButton extends React.Component {
             fail: null
         });
 
-        Client.invalidateAllCaches(
+        invalidateAllCaches(
             () => {
                 this.setState({
                     loading: false
@@ -43,10 +43,6 @@ export default class PurgeCachesButton extends React.Component {
     }
 
     render() {
-        if (global.window.mm_license.IsLicensed !== 'true') {
-            return <div/>;
-        }
-
         let testMessage = null;
         if (this.state.fail) {
             testMessage = (

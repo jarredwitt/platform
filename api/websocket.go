@@ -4,30 +4,26 @@
 package api
 
 import (
+	"net/http"
+
 	l4g "github.com/alecthomas/log4go"
 	"github.com/gorilla/websocket"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
-	"net/http"
-)
-
-const (
-	SOCKET_MAX_MESSAGE_SIZE_KB = 8 * 1024 // 8KB
 )
 
 func InitWebSocket() {
 	l4g.Debug(utils.T("api.web_socket.init.debug"))
 	BaseRoutes.Users.Handle("/websocket", ApiAppHandlerTrustRequester(connect)).Methods("GET")
-	HubStart()
+	app.HubStart()
 }
 
 func connect(c *Context, w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
-		ReadBufferSize:  SOCKET_MAX_MESSAGE_SIZE_KB,
-		WriteBufferSize: SOCKET_MAX_MESSAGE_SIZE_KB,
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
+		ReadBufferSize:  model.SOCKET_MAX_MESSAGE_SIZE_KB,
+		WriteBufferSize: model.SOCKET_MAX_MESSAGE_SIZE_KB,
+		CheckOrigin:     nil,
 	}
 
 	ws, err := upgrader.Upgrade(w, r, nil)
@@ -37,8 +33,12 @@ func connect(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wc := NewWebConn(c, ws)
-	HubRegister(wc)
-	go wc.writePump()
-	wc.readPump()
+	wc := app.NewWebConn(ws, c.Session, c.T, c.Locale)
+
+	if len(c.Session.UserId) > 0 {
+		app.HubRegister(wc)
+	}
+
+	go wc.WritePump()
+	wc.ReadPump()
 }

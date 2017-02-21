@@ -109,7 +109,9 @@ export default class Sidebar extends React.Component {
         const teamMembers = TeamStore.getMyTeamMembers();
         const currentChannelId = ChannelStore.getCurrentId();
         const tutorialStep = PreferenceStore.getInt(Preferences.TUTORIAL_STEP, UserStore.getCurrentId(), 999);
-        const channelList = ChannelUtils.buildDisplayableChannelList(Object.assign([], ChannelStore.getAll()));
+
+        const allChannels = ChannelStore.getAll().map((channel) => Object.assign({}, channel));
+        const channelList = ChannelUtils.buildDisplayableChannelList(allChannels);
 
         return {
             activeId: currentChannelId,
@@ -507,7 +509,11 @@ export default class Sidebar extends React.Component {
             icon = <div className='status'><i className='fa fa-lock'/></div>;
         } else {
             // set up status icon for direct message channels (status is null for other channel types)
-            icon = <StatusIcon status={channel.status}/>;
+            icon = (
+                <StatusIcon
+                    type='avatar'
+                    status={channel.status}
+                />);
         }
 
         let closeButton = null;

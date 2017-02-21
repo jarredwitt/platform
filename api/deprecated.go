@@ -8,6 +8,7 @@ import (
 
 	l4g "github.com/alecthomas/log4go"
 	"github.com/gorilla/mux"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
 )
@@ -31,11 +32,12 @@ func InitDeprecated() {
 func getMoreChannels(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	// user is already in the team
-	if !HasPermissionToTeamContext(c, c.TeamId, model.PERMISSION_LIST_TEAM_CHANNELS) {
+	if !app.SessionHasPermissionToTeam(c.Session, c.TeamId, model.PERMISSION_LIST_TEAM_CHANNELS) {
+		c.SetPermissionError(model.PERMISSION_LIST_TEAM_CHANNELS)
 		return
 	}
 
-	if result := <-Srv.Store.Channel().GetMoreChannels(c.TeamId, c.Session.UserId, 0, 100000); result.Err != nil {
+	if result := <-app.Srv.Store.Channel().GetMoreChannels(c.TeamId, c.Session.UserId, 0, 100000); result.Err != nil {
 		c.Err = result.Err
 		return
 	} else if HandleEtag(result.Data.(*model.ChannelList).Etag(), "Get More Channels (deprecated)", w, r) {
@@ -61,7 +63,7 @@ func updateLastViewedAt(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	doClearPush := false
 	if *utils.Cfg.EmailSettings.SendPushNotifications && !c.Session.IsMobileApp() && active {
-		if result := <-Srv.Store.User().GetUnreadCountForChannel(c.Session.UserId, id); result.Err != nil {
+		if result := <-app.Srv.Store.User().GetUnreadCountForChannel(c.Session.UserId, id); result.Err != nil {
 			l4g.Error(utils.T("api.channel.update_last_viewed_at.get_unread_count_for_channel.error"), c.Session.UserId, id, result.Err.Error())
 		} else {
 			if result.Data.(int64) > 0 {
@@ -71,16 +73,16 @@ func updateLastViewedAt(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		if err := SetActiveChannel(c.Session.UserId, id); err != nil {
+		if err := app.SetActiveChannel(c.Session.UserId, id); err != nil {
 			l4g.Error(err.Error())
 		}
 	}()
 
-	Srv.Store.Channel().UpdateLastViewedAt([]string{id}, c.Session.UserId)
+	app.Srv.Store.Channel().UpdateLastViewedAt([]string{id}, c.Session.UserId)
 
 	// Must be after update so that unread count is correct
 	if doClearPush {
-		go clearPushNotification(c.Session.UserId, id)
+		go app.ClearPushNotification(c.Session.UserId, id)
 	}
 
 	chanPref := model.Preference{
@@ -97,12 +99,7 @@ func updateLastViewedAt(c *Context, w http.ResponseWriter, r *http.Request) {
 		Value:    c.TeamId,
 	}
 
-	Srv.Store.Preference().Save(&model.Preferences{teamPref, chanPref})
-
-	message := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_CHANNEL_VIEWED, c.TeamId, "", c.Session.UserId, nil)
-	message.Add("channel_id", id)
-
-	go Publish(message)
+	app.Srv.Store.Preference().Save(&model.Preferences{teamPref, chanPref})
 
 	result := make(map[string]string)
 	result["id"] = id
@@ -116,7 +113,7 @@ func setLastViewedAt(c *Context, w http.ResponseWriter, r *http.Request) {
 	data := model.StringInterfaceFromJson(r.Body)
 	newLastViewedAt := int64(data["last_viewed_at"].(float64))
 
-	Srv.Store.Channel().SetLastViewedAt(id, c.Session.UserId, newLastViewedAt)
+	app.Srv.Store.Channel().SetLastViewedAt(id, c.Session.UserId, newLastViewedAt)
 
 	chanPref := model.Preference{
 		UserId:   c.Session.UserId,
@@ -132,12 +129,7 @@ func setLastViewedAt(c *Context, w http.ResponseWriter, r *http.Request) {
 		Value:    c.TeamId,
 	}
 
-	Srv.Store.Preference().Save(&model.Preferences{teamPref, chanPref})
-
-	message := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_CHANNEL_VIEWED, c.TeamId, "", c.Session.UserId, nil)
-	message.Add("channel_id", id)
-
-	go Publish(message)
+	app.Srv.Store.Preference().Save(&model.Preferences{teamPref, chanPref})
 
 	result := make(map[string]string)
 	result["id"] = id
@@ -154,7 +146,7 @@ func setActiveChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := SetActiveChannel(c.Session.UserId, channelId); err != nil {
+	if err := app.SetActiveChannel(c.Session.UserId, channelId); err != nil {
 		c.Err = err
 		return
 	}

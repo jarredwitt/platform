@@ -60,6 +60,7 @@ type TeamStore interface {
 	UpdateDisplayName(name string, teamId string) StoreChannel
 	Get(id string) StoreChannel
 	GetByName(name string) StoreChannel
+	SearchByName(name string) StoreChannel
 	GetAll() StoreChannel
 	GetAllTeamListing() StoreChannel
 	GetTeamsByUserId(userId string) StoreChannel
@@ -87,12 +88,15 @@ type ChannelStore interface {
 	Update(channel *model.Channel) StoreChannel
 	Get(id string, allowFromCache bool) StoreChannel
 	InvalidateChannel(id string)
+	InvalidateChannelByName(teamId, name string)
 	GetFromMaster(id string) StoreChannel
 	Delete(channelId string, time int64) StoreChannel
 	SetDeleteAt(channelId string, deleteAt int64, updateAt int64) StoreChannel
 	PermanentDeleteByTeam(teamId string) StoreChannel
-	GetByName(team_id string, name string) StoreChannel
-	GetByNameIncludeDeleted(team_id string, name string) StoreChannel
+	PermanentDelete(channelId string) StoreChannel
+	GetByName(team_id string, name string, allowFromCache bool) StoreChannel
+	GetByNameIncludeDeleted(team_id string, name string, allowFromCache bool) StoreChannel
+	GetDeletedByName(team_id string, name string) StoreChannel
 	GetChannels(teamId string, userId string) StoreChannel
 	GetMoreChannels(teamId string, userId string, offset int, limit int) StoreChannel
 	GetChannelCounts(teamId string, userId string) StoreChannel
@@ -101,7 +105,7 @@ type ChannelStore interface {
 	GetForPost(postId string) StoreChannel
 	SaveMember(member *model.ChannelMember) StoreChannel
 	UpdateMember(member *model.ChannelMember) StoreChannel
-	GetMembers(channelId string) StoreChannel
+	GetMembers(channelId string, offset, limit int) StoreChannel
 	GetMember(channelId string, userId string) StoreChannel
 	GetAllChannelMembersForUser(userId string, allowFromCache bool) StoreChannel
 	InvalidateAllChannelMembersForUser(userId string)
@@ -112,6 +116,7 @@ type ChannelStore interface {
 	GetMemberCount(channelId string, allowFromCache bool) StoreChannel
 	RemoveMember(channelId string, userId string) StoreChannel
 	PermanentDeleteMembersByUser(userId string) StoreChannel
+	PermanentDeleteMembersByChannel(channelId string) StoreChannel
 	UpdateLastViewedAt(channelIds []string, userId string) StoreChannel
 	SetLastViewedAt(channelId string, userId string, newLastViewedAt int64) StoreChannel
 	IncrementMentionCount(channelId string, userId string) StoreChannel
@@ -127,8 +132,10 @@ type PostStore interface {
 	Save(post *model.Post) StoreChannel
 	Update(newPost *model.Post, oldPost *model.Post) StoreChannel
 	Get(id string) StoreChannel
+	GetSingle(id string) StoreChannel
 	Delete(postId string, time int64) StoreChannel
 	PermanentDeleteByUser(userId string) StoreChannel
+	PermanentDeleteByChannel(channelId string) StoreChannel
 	GetPosts(channelId string, offset int, limit int, allowFromCache bool) StoreChannel
 	GetFlaggedPosts(userId string, offset int, limit int) StoreChannel
 	GetPostsBefore(channelId string, postId string, numPosts int, offset int) StoreChannel
@@ -155,7 +162,8 @@ type UserStore interface {
 	GetAll() StoreChannel
 	InvalidateProfilesInChannelCacheByUser(userId string)
 	InvalidateProfilesInChannelCache(channelId string)
-	GetProfilesInChannel(channelId string, offset int, limit int, allowFromCache bool) StoreChannel
+	GetProfilesInChannel(channelId string, offset int, limit int) StoreChannel
+	GetAllProfilesInChannel(channelId string, allowFromCache bool) StoreChannel
 	GetProfilesNotInChannel(teamId string, channelId string, offset int, limit int) StoreChannel
 	GetProfilesByUsernames(usernames []string, teamId string) StoreChannel
 	GetAllProfiles(offset int, limit int) StoreChannel
@@ -175,6 +183,7 @@ type UserStore interface {
 	GetSystemAdminProfiles() StoreChannel
 	PermanentDelete(userId string) StoreChannel
 	AnalyticsUniqueUserCount(teamId string) StoreChannel
+	AnalyticsActiveCount(time int64) StoreChannel
 	GetUnreadCount(userId string) StoreChannel
 	GetUnreadCountForChannel(userId string, channelId string) StoreChannel
 	GetRecentlyActiveUsersForTeam(teamId string) StoreChannel
@@ -199,7 +208,7 @@ type SessionStore interface {
 
 type AuditStore interface {
 	Save(audit *model.Audit) StoreChannel
-	Get(user_id string, limit int) StoreChannel
+	Get(user_id string, offset int, limit int) StoreChannel
 	PermanentDeleteByUser(userId string) StoreChannel
 }
 
@@ -242,7 +251,7 @@ type SystemStore interface {
 
 type WebhookStore interface {
 	SaveIncoming(webhook *model.IncomingWebhook) StoreChannel
-	GetIncoming(id string) StoreChannel
+	GetIncoming(id string, allowFromCache bool) StoreChannel
 	GetIncomingByTeam(teamId string) StoreChannel
 	GetIncomingByChannel(channelId string) StoreChannel
 	DeleteIncoming(webhookId string, time int64) StoreChannel
@@ -256,6 +265,7 @@ type WebhookStore interface {
 	UpdateOutgoing(hook *model.OutgoingWebhook) StoreChannel
 	AnalyticsIncomingCount(teamId string) StoreChannel
 	AnalyticsOutgoingCount(teamId string) StoreChannel
+	InvalidateWebhookCache(webhook string)
 }
 
 type CommandStore interface {
@@ -275,6 +285,7 @@ type PreferenceStore interface {
 	GetAll(userId string) StoreChannel
 	Delete(userId, category, name string) StoreChannel
 	DeleteCategory(userId string, category string) StoreChannel
+	DeleteCategoryAndName(category string, name string) StoreChannel
 	PermanentDeleteByUser(userId string) StoreChannel
 	IsFeatureEnabled(feature, userId string) StoreChannel
 }
@@ -293,7 +304,7 @@ type PasswordRecoveryStore interface {
 
 type EmojiStore interface {
 	Save(emoji *model.Emoji) StoreChannel
-	Get(id string) StoreChannel
+	Get(id string, allowFromCache bool) StoreChannel
 	GetByName(name string) StoreChannel
 	GetAll() StoreChannel
 	Delete(id string, time int64) StoreChannel
@@ -315,7 +326,8 @@ type FileInfoStore interface {
 	Save(info *model.FileInfo) StoreChannel
 	Get(id string) StoreChannel
 	GetByPath(path string) StoreChannel
-	GetForPost(postId string) StoreChannel
+	GetForPost(postId string, readFromMaster bool, allowFromCache bool) StoreChannel
+	InvalidateFileInfosForPostCache(postId string)
 	AttachToPost(fileId string, postId string) StoreChannel
 	DeleteForPost(postId string) StoreChannel
 }

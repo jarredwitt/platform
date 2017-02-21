@@ -4,6 +4,7 @@
 package api
 
 import (
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/model"
 )
 
@@ -33,7 +34,7 @@ func (me *JoinProvider) GetCommand(c *Context) *model.Command {
 }
 
 func (me *JoinProvider) DoCommand(c *Context, args *model.CommandArgs, message string) *model.CommandResponse {
-	if result := <-Srv.Store.Channel().GetByName(c.TeamId, message); result.Err != nil {
+	if result := <-app.Srv.Store.Channel().GetByName(c.TeamId, message, true); result.Err != nil {
 		return &model.CommandResponse{Text: c.T("api.command_join.list.app_error"), ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
 	} else {
 		channel := result.Data.(*model.Channel)
@@ -44,7 +45,7 @@ func (me *JoinProvider) DoCommand(c *Context, args *model.CommandArgs, message s
 				return &model.CommandResponse{Text: c.T("api.command_join.fail.app_error"), ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
 			}
 
-			if err, _ := JoinChannelById(c, c.Session.UserId, channel.Id); err != nil {
+			if err := app.JoinChannel(channel, c.Session.UserId); err != nil {
 				return &model.CommandResponse{Text: c.T("api.command_join.fail.app_error"), ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
 			}
 

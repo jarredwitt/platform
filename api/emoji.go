@@ -18,6 +18,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"github.com/disintegration/imaging"
 	"github.com/gorilla/mux"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/einterfaces"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
@@ -46,7 +47,7 @@ func getEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if result := <-Srv.Store.Emoji().GetAll(); result.Err != nil {
+	if result := <-app.Srv.Store.Emoji().GetAll(); result.Err != nil {
 		c.Err = result.Err
 		return
 	} else {
@@ -114,7 +115,7 @@ func createEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if result := <-Srv.Store.Emoji().GetByName(emoji.Name); result.Err == nil && result.Data != nil {
+	if result := <-app.Srv.Store.Emoji().GetByName(emoji.Name); result.Err == nil && result.Data != nil {
 		c.Err = model.NewLocAppError("createEmoji", "api.emoji.create.duplicate.app_error", nil, "")
 		c.Err.StatusCode = http.StatusBadRequest
 		return
@@ -128,7 +129,7 @@ func createEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if result := <-Srv.Store.Emoji().Save(emoji); result.Err != nil {
+	if result := <-app.Srv.Store.Emoji().Save(emoji); result.Err != nil {
 		c.Err = result.Err
 		return
 	} else {
@@ -162,7 +163,7 @@ func uploadEmojiImage(id string, imageData *multipart.FileHeader) *model.AppErro
 				if err := gif.EncodeAll(newbuf, resized_gif); err != nil {
 					return model.NewLocAppError("uploadEmojiImage", "api.emoji.upload.large_image.gif_encode_error", nil, "")
 				}
-				if err := WriteFile(newbuf.Bytes(), getEmojiImagePath(id)); err != nil {
+				if err := app.WriteFile(newbuf.Bytes(), getEmojiImagePath(id)); err != nil {
 					return err
 				}
 			}
@@ -174,13 +175,13 @@ func uploadEmojiImage(id string, imageData *multipart.FileHeader) *model.AppErro
 				if err := png.Encode(newbuf, resized_image); err != nil {
 					return model.NewLocAppError("uploadEmojiImage", "api.emoji.upload.large_image.encode_error", nil, "")
 				}
-				if err := WriteFile(newbuf.Bytes(), getEmojiImagePath(id)); err != nil {
+				if err := app.WriteFile(newbuf.Bytes(), getEmojiImagePath(id)); err != nil {
 					return err
 				}
 			}
 		}
 	} else {
-		if err := WriteFile(buf.Bytes(), getEmojiImagePath(id)); err != nil {
+		if err := app.WriteFile(buf.Bytes(), getEmojiImagePath(id)); err != nil {
 			return err
 		}
 	}
@@ -210,20 +211,20 @@ func deleteEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	var emoji *model.Emoji
-	if result := <-Srv.Store.Emoji().Get(id); result.Err != nil {
+	if result := <-app.Srv.Store.Emoji().Get(id, false); result.Err != nil {
 		c.Err = result.Err
 		return
 	} else {
 		emoji = result.Data.(*model.Emoji)
 
-		if c.Session.UserId != emoji.CreatorId && !HasPermissionToContext(c, model.PERMISSION_MANAGE_SYSTEM) {
+		if c.Session.UserId != emoji.CreatorId && !app.SessionHasPermissionTo(c.Session, model.PERMISSION_MANAGE_SYSTEM) {
 			c.Err = model.NewLocAppError("deleteEmoji", "api.emoji.delete.permissions.app_error", nil, "user_id="+c.Session.UserId)
 			c.Err.StatusCode = http.StatusUnauthorized
 			return
 		}
 	}
 
-	if err := (<-Srv.Store.Emoji().Delete(id, model.GetMillis())).Err; err != nil {
+	if err := (<-app.Srv.Store.Emoji().Delete(id, model.GetMillis())).Err; err != nil {
 		c.Err = err
 		return
 	}
@@ -235,13 +236,13 @@ func deleteEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteEmojiImage(id string) {
-	if err := MoveFile(getEmojiImagePath(id), "emoji/"+id+"/image_deleted"); err != nil {
+	if err := app.MoveFile(getEmojiImagePath(id), "emoji/"+id+"/image_deleted"); err != nil {
 		l4g.Error("Failed to rename image when deleting emoji %v", id)
 	}
 }
 
 func deleteReactionsForEmoji(emojiName string) {
-	if result := <-Srv.Store.Reaction().DeleteAllWithEmojiName(emojiName); result.Err != nil {
+	if result := <-app.Srv.Store.Reaction().DeleteAllWithEmojiName(emojiName); result.Err != nil {
 		l4g.Warn(utils.T("api.emoji.delete.delete_reactions.app_error"), emojiName)
 		l4g.Warn(result.Err)
 	}
@@ -268,13 +269,13 @@ func getEmojiImage(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if result := <-Srv.Store.Emoji().Get(id); result.Err != nil {
+	if result := <-app.Srv.Store.Emoji().Get(id, true); result.Err != nil {
 		c.Err = result.Err
 		return
 	} else {
 		var img []byte
 
-		if data, err := ReadFile(getEmojiImagePath(id)); err != nil {
+		if data, err := app.ReadFile(getEmojiImagePath(id)); err != nil {
 			c.Err = model.NewLocAppError("getEmojiImage", "api.emoji.get_image.read.app_error", nil, err.Error())
 			return
 		} else {
@@ -287,6 +288,7 @@ func getEmojiImage(c *Context, w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "image/"+imageType)
 		}
 
+		w.Header().Set("Cache-Control", "max-age=2592000, public")
 		w.Write(img)
 	}
 }

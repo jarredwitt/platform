@@ -61,6 +61,33 @@ func TestPostStoreGet(t *testing.T) {
 	if err := (<-store.Post().Get("123")).Err; err == nil {
 		t.Fatal("Missing id should have failed")
 	}
+
+	if err := (<-store.Post().Get("")).Err; err == nil {
+		t.Fatal("should fail for blank post ids")
+	}
+}
+
+func TestPostStoreGetSingle(t *testing.T) {
+	Setup()
+
+	o1 := &model.Post{}
+	o1.ChannelId = model.NewId()
+	o1.UserId = model.NewId()
+	o1.Message = "a" + model.NewId() + "b"
+
+	o1 = (<-store.Post().Save(o1)).Data.(*model.Post)
+
+	if r1 := <-store.Post().GetSingle(o1.Id); r1.Err != nil {
+		t.Fatal(r1.Err)
+	} else {
+		if r1.Data.(*model.Post).CreateAt != o1.CreateAt {
+			t.Fatal("invalid returned post")
+		}
+	}
+
+	if err := (<-store.Post().GetSingle("123")).Err; err == nil {
+		t.Fatal("Missing id should have failed")
+	}
 }
 
 func TestGetEtagCache(t *testing.T) {
@@ -329,6 +356,12 @@ func TestPostStorePermDelete1Level(t *testing.T) {
 	o2.RootId = o1.Id
 	o2 = (<-store.Post().Save(o2)).Data.(*model.Post)
 
+	o3 := &model.Post{}
+	o3.ChannelId = model.NewId()
+	o3.UserId = model.NewId()
+	o3.Message = "a" + model.NewId() + "b"
+	o3 = (<-store.Post().Save(o3)).Data.(*model.Post)
+
 	if r2 := <-store.Post().PermanentDeleteByUser(o2.UserId); r2.Err != nil {
 		t.Fatal(r2.Err)
 	}
@@ -338,6 +371,14 @@ func TestPostStorePermDelete1Level(t *testing.T) {
 	}
 
 	if r4 := (<-store.Post().Get(o2.Id)); r4.Err == nil {
+		t.Fatal("Deleted id should have failed")
+	}
+
+	if r2 := <-store.Post().PermanentDeleteByChannel(o3.ChannelId); r2.Err != nil {
+		t.Fatal(r2.Err)
+	}
+
+	if r3 := (<-store.Post().Get(o3.Id)); r3.Err == nil {
 		t.Fatal("Deleted id should have failed")
 	}
 }
@@ -776,7 +817,7 @@ func TestPostStoreSearch(t *testing.T) {
 	o1a.ChannelId = c1.Id
 	o1a.UserId = model.NewId()
 	o1a.Message = "corey mattermost new york"
-	o1a.Type = model.POST_JOIN_LEAVE
+	o1a.Type = model.POST_JOIN_CHANNEL
 	o1a = (<-store.Post().Save(o1a)).Data.(*model.Post)
 
 	o2 := &model.Post{}

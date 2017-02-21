@@ -32,6 +32,15 @@ var CfgHash = ""
 var CfgFileName string = ""
 var ClientCfg map[string]string = map[string]string{}
 var originalDisableDebugLvl l4g.Level = l4g.DEBUG
+var siteURL = ""
+
+func GetSiteURL() string {
+	return siteURL
+}
+
+func SetSiteURL(url string) {
+	siteURL = strings.TrimRight(url, "/")
+}
 
 func FindConfigFile(fileName string) string {
 	if _, err := os.Stat("./config/" + fileName); err == nil {
@@ -59,7 +68,7 @@ func FindDir(dir string) string {
 func DisableDebugLogForTest() {
 	if l4g.Global["stdout"] != nil {
 		originalDisableDebugLvl = l4g.Global["stdout"].Level
-		l4g.Global["stdout"].Level = l4g.WARNING
+		l4g.Global["stdout"].Level = l4g.ERROR
 	}
 }
 
@@ -215,6 +224,7 @@ func LoadConfig(fileName string) {
 	}
 
 	SetDefaultRolesBasedOnConfig()
+	SetSiteURL(*Cfg.ServiceSettings.SiteURL)
 }
 
 func RegenerateClientConfig() {
@@ -257,6 +267,9 @@ func getClientConfig(c *model.Config) map[string]string {
 	props["EnableTesting"] = strconv.FormatBool(c.ServiceSettings.EnableTesting)
 	props["EnableDeveloper"] = strconv.FormatBool(*c.ServiceSettings.EnableDeveloper)
 	props["EnableDiagnostics"] = strconv.FormatBool(*c.LogSettings.EnableDiagnostics)
+	props["RestrictPostDelete"] = *c.ServiceSettings.RestrictPostDelete
+	props["AllowEditPost"] = *c.ServiceSettings.AllowEditPost
+	props["PostEditTimeLimit"] = fmt.Sprintf("%v", *c.ServiceSettings.PostEditTimeLimit)
 
 	props["SendEmailNotifications"] = strconv.FormatBool(c.EmailSettings.SendEmailNotifications)
 	props["SendPushNotifications"] = strconv.FormatBool(*c.EmailSettings.SendPushNotifications)
@@ -297,6 +310,10 @@ func getClientConfig(c *model.Config) map[string]string {
 	props["IosAppDownloadLink"] = *c.NativeAppSettings.IosAppDownloadLink
 
 	props["EnableWebrtc"] = strconv.FormatBool(*c.WebrtcSettings.Enable)
+
+	props["MaxNotificationsPerChannel"] = strconv.FormatInt(*c.TeamSettings.MaxNotificationsPerChannel, 10)
+	props["TimeBetweenUserTypingUpdatesMilliseconds"] = strconv.FormatInt(*c.ServiceSettings.TimeBetweenUserTypingUpdatesMilliseconds, 10)
+	props["EnableUserTypingMessages"] = strconv.FormatBool(*c.ServiceSettings.EnableUserTypingMessages)
 
 	if IsLicensed {
 		if *License.Features.CustomBrand {

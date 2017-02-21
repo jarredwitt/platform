@@ -158,13 +158,17 @@ export default class UserList extends React.Component {
 
         clearTimeout(this.searchTimeoutId);
 
-        this.searchTimeoutId = setTimeout(
+        const searchTimeoutId = setTimeout(
             () => {
                 searchUsers(
                     term,
                     this.props.params.team,
                     options,
                     (users) => {
+                        if (searchTimeoutId !== this.searchTimeoutId) {
+                            return;
+                        }
+
                         this.setState({loading: true, search: true, users});
                         loadTeamMembersForProfilesList(users, this.props.params.team, this.loadComplete);
                     }
@@ -172,6 +176,8 @@ export default class UserList extends React.Component {
             },
             Constants.SEARCH_TIMEOUT_MILLISECONDS
         );
+
+        this.searchTimeoutId = searchTimeoutId;
     }
 
     render() {
@@ -263,26 +269,21 @@ export default class UserList extends React.Component {
                     />
                 </h3>
                 <FormError error={this.state.serverError}/>
-                <form
-                    className='form-horizontal'
-                    role='form'
-                >
-                    <div className='more-modal__list member-list-holder'>
-                        <SearchableUserList
-                            users={usersToDisplay}
-                            usersPerPage={USERS_PER_PAGE}
-                            total={this.state.total}
-                            extraInfo={extraInfo}
-                            nextPage={this.nextPage}
-                            search={this.search}
-                            actions={[AdminTeamMembersDropdown]}
-                            actionProps={{
-                                doPasswordReset: this.doPasswordReset
-                            }}
-                            actionUserProps={actionUserProps}
-                        />
-                    </div>
-                </form>
+                <div className='more-modal__list member-list-holder'>
+                    <SearchableUserList
+                        users={usersToDisplay}
+                        usersPerPage={USERS_PER_PAGE}
+                        total={this.state.total}
+                        extraInfo={extraInfo}
+                        nextPage={this.nextPage}
+                        search={this.search}
+                        actions={[AdminTeamMembersDropdown]}
+                        actionProps={{
+                            doPasswordReset: this.doPasswordReset
+                        }}
+                        actionUserProps={actionUserProps}
+                    />
+                </div>
                 <ResetPasswordModal
                     user={this.state.user}
                     show={this.state.showPasswordModal}

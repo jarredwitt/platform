@@ -93,7 +93,8 @@ func (s SqlPostStore) Save(post *model.Post) StoreChannel {
 		} else {
 			time := post.UpdateAt
 
-			if post.Type != model.POST_JOIN_LEAVE && post.Type != model.POST_ADD_REMOVE {
+			if post.Type != model.POST_JOIN_LEAVE && post.Type != model.POST_JOIN_CHANNEL && post.Type != model.POST_LEAVE_CHANNEL &&
+				post.Type != model.POST_ADD_REMOVE && post.Type != model.POST_ADD_TO_CHANNEL && post.Type != model.POST_REMOVE_FROM_CHANNEL {
 				s.GetMaster().Exec("UPDATE Channels SET LastPostAt = :LastPostAt, TotalMsgCount = TotalMsgCount + 1 WHERE Id = :ChannelId", map[string]interface{}{"LastPostAt": time, "ChannelId": post.ChannelId})
 			} else {
 				// don't update TotalMsgCount for unimportant messages so that the channel isn't marked as unread
@@ -160,7 +161,7 @@ func (s SqlPostStore) GetFlaggedPosts(userId string, offset int, limit int) Stor
 	storeChannel := make(StoreChannel, 1)
 	go func() {
 		result := StoreResult{}
-		pl := &model.PostList{}
+		pl := model.NewPostList()
 
 		var posts []*model.Post
 		if _, err := s.GetReplica().Select(&posts, "SELECT * FROM Posts WHERE Id IN (SELECT Name FROM Preferences WHERE UserId = :UserId AND Category = :Category) AND DeleteAt = 0 ORDER BY CreateAt DESC LIMIT :Limit OFFSET :Offset", map[string]interface{}{"UserId": userId, "Category": model.PREFERENCE_CATEGORY_FLAGGED_POST, "Offset": offset, "Limit": limit}); err != nil {
@@ -186,12 +187,22 @@ func (s SqlPostStore) Get(id string) StoreChannel {
 
 	go func() {
 		result := StoreResult{}
-		pl := &model.PostList{}
+		pl := model.NewPostList()
+
+		if len(id) == 0 {
+			result.Err = model.NewLocAppError("SqlPostStore.GetPost", "store.sql_post.get.app_error", nil, "id="+id)
+			storeChannel <- result
+			close(storeChannel)
+			return
+		}
 
 		var post model.Post
 		err := s.GetReplica().SelectOne(&post, "SELECT * FROM Posts WHERE Id = :Id AND DeleteAt = 0", map[string]interface{}{"Id": id})
 		if err != nil {
 			result.Err = model.NewLocAppError("SqlPostStore.GetPost", "store.sql_post.get.app_error", nil, "id="+id+err.Error())
+			storeChannel <- result
+			close(storeChannel)
+			return
 		}
 
 		pl.AddPost(&post)
@@ -203,10 +214,20 @@ func (s SqlPostStore) Get(id string) StoreChannel {
 			rootId = post.Id
 		}
 
+		if len(rootId) == 0 {
+			result.Err = model.NewLocAppError("SqlPostStore.GetPost", "store.sql_post.get.app_error", nil, "root_id="+rootId)
+			storeChannel <- result
+			close(storeChannel)
+			return
+		}
+
 		var posts []*model.Post
 		_, err = s.GetReplica().Select(&posts, "SELECT * FROM Posts WHERE (Id = :Id OR RootId = :RootId) AND DeleteAt = 0", map[string]interface{}{"Id": rootId, "RootId": rootId})
 		if err != nil {
 			result.Err = model.NewLocAppError("SqlPostStore.GetPost", "store.sql_post.get.app_error", nil, "root_id="+rootId+err.Error())
+			storeChannel <- result
+			close(storeChannel)
+			return
 		} else {
 			for _, p := range posts {
 				pl.AddPost(p)
@@ -214,6 +235,27 @@ func (s SqlPostStore) Get(id string) StoreChannel {
 		}
 
 		result.Data = pl
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
+func (s SqlPostStore) GetSingle(id string) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		var post model.Post
+		err := s.GetReplica().SelectOne(&post, "SELECT * FROM Posts WHERE Id = :Id AND DeleteAt = 0", map[string]interface{}{"Id": id})
+		if err != nil {
+			result.Err = model.NewLocAppError("SqlPostStore.GetSingle", "store.sql_post.get.app_error", nil, "id="+id+err.Error())
+		}
+
+		result.Data = &post
 
 		storeChannel <- result
 		close(storeChannel)
@@ -282,7 +324,7 @@ func (s SqlPostStore) Delete(postId string, time int64) StoreChannel {
 	go func() {
 		result := StoreResult{}
 
-		_, err := s.GetMaster().Exec("Update Posts SET DeleteAt = :DeleteAt, UpdateAt = :UpdateAt WHERE Id = :Id OR ParentId = :ParentId OR RootId = :RootId", map[string]interface{}{"DeleteAt": time, "UpdateAt": time, "Id": postId, "ParentId": postId, "RootId": postId})
+		_, err := s.GetMaster().Exec("Update Posts SET DeleteAt = :DeleteAt, UpdateAt = :UpdateAt WHERE Id = :Id OR RootId = :RootId", map[string]interface{}{"DeleteAt": time, "UpdateAt": time, "Id": postId, "RootId": postId})
 		if err != nil {
 			result.Err = model.NewLocAppError("SqlPostStore.Delete", "store.sql_post.delete.app_error", nil, "id="+postId+", err="+err.Error())
 		}
@@ -300,7 +342,7 @@ func (s SqlPostStore) permanentDelete(postId string) StoreChannel {
 	go func() {
 		result := StoreResult{}
 
-		_, err := s.GetMaster().Exec("DELETE FROM Posts WHERE Id = :Id OR ParentId = :ParentId OR RootId = :RootId", map[string]interface{}{"Id": postId, "ParentId": postId, "RootId": postId})
+		_, err := s.GetMaster().Exec("DELETE FROM Posts WHERE Id = :Id OR RootId = :RootId", map[string]interface{}{"Id": postId, "RootId": postId})
 		if err != nil {
 			result.Err = model.NewLocAppError("SqlPostStore.Delete", "store.sql_post.permanent_delete.app_error", nil, "id="+postId+", err="+err.Error())
 		}
@@ -387,6 +429,23 @@ func (s SqlPostStore) PermanentDeleteByUser(userId string) StoreChannel {
 	return storeChannel
 }
 
+func (s SqlPostStore) PermanentDeleteByChannel(channelId string) StoreChannel {
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		if _, err := s.GetMaster().Exec("DELETE FROM Posts WHERE ChannelId = :ChannelId", map[string]interface{}{"ChannelId": channelId}); err != nil {
+			result.Err = model.NewLocAppError("SqlPostStore.PermanentDeleteByChannel", "store.sql_post.permanent_delete_by_channel.app_error", nil, "channel_id="+channelId+", "+err.Error())
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
 func (s SqlPostStore) GetPosts(channelId string, offset int, limit int, allowFromCache bool) StoreChannel {
 	storeChannel := make(StoreChannel, 1)
 
@@ -433,7 +492,7 @@ func (s SqlPostStore) GetPosts(channelId string, offset int, limit int, allowFro
 			posts := rpr.Data.([]*model.Post)
 			parents := cpr.Data.([]*model.Post)
 
-			list := &model.PostList{Order: make([]string, 0, len(posts))}
+			list := model.NewPostList()
 
 			for _, p := range posts {
 				list.AddPost(p)
@@ -474,7 +533,7 @@ func (s SqlPostStore) GetPostsSince(channelId string, time int64, allowFromCache
 				if metrics != nil {
 					metrics.IncrementMemCacheHitCounter("Last Post Time")
 				}
-				list := &model.PostList{Order: make([]string, 0, 0)}
+				list := model.NewPostList()
 				result.Data = list
 				storeChannel <- result
 				close(storeChannel)
@@ -523,7 +582,7 @@ func (s SqlPostStore) GetPostsSince(channelId string, time int64, allowFromCache
 			result.Err = model.NewLocAppError("SqlPostStore.GetPostsSince", "store.sql_post.get_posts_since.app_error", nil, "channelId="+channelId+err.Error())
 		} else {
 
-			list := &model.PostList{Order: make([]string, 0, len(posts))}
+			list := model.NewPostList()
 
 			var latestUpdate int64 = 0
 
@@ -617,7 +676,7 @@ func (s SqlPostStore) getPostsAround(channelId string, postId string, numPosts i
 			result.Err = model.NewLocAppError("SqlPostStore.GetPostContext", "store.sql_post.get_posts_around.get_parent.app_error", nil, "channelId="+channelId+err2.Error())
 		} else {
 
-			list := &model.PostList{Order: make([]string, 0, len(posts))}
+			list := model.NewPostList()
 
 			// We need to flip the order if we selected backwards
 			if before {
@@ -879,7 +938,7 @@ func (s SqlPostStore) Search(teamId string, userId string, params *model.SearchP
 			result.Err = model.NewLocAppError("SqlPostStore.Search", "store.sql_post.search.app_error", nil, "teamId="+teamId+", err="+err.Error())
 		}
 
-		list := &model.PostList{Order: make([]string, 0, len(posts))}
+		list := model.NewPostList()
 
 		for _, p := range posts {
 			if searchType == "Hashtags" {

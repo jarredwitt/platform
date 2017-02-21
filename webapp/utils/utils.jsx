@@ -27,14 +27,6 @@ export function isEmail(email) {
     return (/^.+@.+$/).test(email);
 }
 
-export function cleanUpUrlable(input) {
-    var cleaned = input.trim().replace(/-/g, ' ').replace(/[^\w\s]/gi, '').toLowerCase().replace(/\s/g, '-');
-    cleaned = cleaned.replace(/-{2,}/, '-');
-    cleaned = cleaned.replace(/^-+/, '');
-    cleaned = cleaned.replace(/-+$/, '');
-    return cleaned;
-}
-
 export function isMac() {
     return navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 }
@@ -49,6 +41,14 @@ export function isInRole(roles, inRole) {
         if (parts[i] === inRole) {
             return true;
         }
+    }
+
+    return false;
+}
+
+export function isChannelAdmin(roles) {
+    if (isInRole(roles, 'channel_admin')) {
+        return true;
     }
 
     return false;
@@ -518,6 +518,7 @@ export function applyTheme(theme) {
         changeCss('.app__body .modal .modal-header .modal-title, .app__body .modal .modal-header .modal-title .name, .app__body .modal .modal-header button.close', 'color:' + theme.sidebarHeaderTextColor);
         changeCss('.app__body #navbar .navbar-default .navbar-brand .heading', 'color:' + theme.sidebarHeaderTextColor);
         changeCss('.app__body #navbar .navbar-default .navbar-toggle .icon-bar', 'background:' + theme.sidebarHeaderTextColor);
+        changeCss('.app__body .post-list__timestamp > div', 'border-color:' + changeOpacity(theme.sidebarHeaderTextColor, 0.5));
         changeCss('@media(max-width: 768px){.app__body .search-bar__container', 'color:' + theme.sidebarHeaderTextColor);
     }
 
@@ -525,14 +526,12 @@ export function applyTheme(theme) {
         changeCss('.app__body .status .online--icon', 'fill:' + theme.onlineIndicator);
         changeCss('.app__body .channel-header__info .status .online--icon', 'fill:' + theme.onlineIndicator);
         changeCss('.app__body .navbar .status .online--icon', 'fill:' + theme.onlineIndicator);
-        changeCss('.status-wrapper.status-online:after', 'background:' + theme.onlineIndicator);
     }
 
     if (theme.awayIndicator) {
         changeCss('.app__body .status .away--icon', 'fill:' + theme.awayIndicator);
         changeCss('.app__body .channel-header__info .status .away--icon', 'fill:' + theme.awayIndicator);
         changeCss('.app__body .navbar .status .away--icon', 'fill:' + theme.awayIndicator);
-        changeCss('.status-wrapper.status-away:after', 'background:' + theme.awayIndicator);
     }
 
     if (theme.mentionBj) {
@@ -549,7 +548,8 @@ export function applyTheme(theme) {
 
     if (theme.centerChannelBg) {
         changeCss('@media(min-width: 768px){.app__body .post:hover .post__header .col__reply, .app__body .post.post--hovered .post__header .col__reply', 'background:' + theme.centerChannelBg);
-        changeCss('.app__body .app__content, .app__body .markdown__table, .app__body .markdown__table tbody tr, .app__body .suggestion-list__content, .app__body .modal .modal-content, .app__body .modal .modal-footer, .app__body .post.post--compact .post-image__column, .app__body .suggestion-list__divider > span', 'background:' + theme.centerChannelBg);
+        changeCss('@media(max-width: 320px){.tutorial-steps__container', 'background:' + theme.centerChannelBg);
+        changeCss('.app__body .app__content, .app__body .markdown__table, .app__body .markdown__table tbody tr, .app__body .suggestion-list__content, .app__body .modal .modal-content, .app__body .modal .modal-footer, .app__body .post.post--compact .post-image__column, .app__body .suggestion-list__divider > span, .app__body .status-wrapper .status', 'background:' + theme.centerChannelBg);
         changeCss('#post-list .post-list-holder-by-time, .app__body .post .dropdown-menu a', 'background:' + theme.centerChannelBg);
         changeCss('#post-create', 'background:' + theme.centerChannelBg);
         changeCss('.app__body .date-separator .separator__text, .app__body .new-separator .separator__text', 'background:' + theme.centerChannelBg);
@@ -595,7 +595,7 @@ export function applyTheme(theme) {
         changeCss('.app__body .popover.left>.arrow', 'border-left-color:' + changeOpacity(theme.centerChannelColor, 0.25));
         changeCss('.app__body .popover.top>.arrow', 'border-top-color:' + changeOpacity(theme.centerChannelColor, 0.25));
         changeCss('.app__body .suggestion-list__content .command, .app__body .popover .popover-title', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
-        changeCss('.app__body .suggestion-list__content .command, .app__body .popover .popover-dm__content', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
+        changeCss('.app__body .suggestion-list__content .command, .app__body .popover .popover__row', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
         changeCss('.app__body .suggestion-list__divider:before, .app__body .dropdown-menu .divider, .app__body .search-help-popover .search-autocomplete__divider:before', 'background:' + theme.centerChannelColor);
         changeCss('.app__body .custom-textarea', 'color:' + theme.centerChannelColor);
         changeCss('.app__body .post-image__column', 'border-color:' + changeOpacity(theme.centerChannelColor, 0.2));
@@ -712,6 +712,17 @@ export function changeCss(className, classValue) {
 
     // Grab style sheet
     const styleSheet = styleEl.sheet;
+    const rules = styleSheet.cssRules || styleSheet.rules;
+    const style = classValue.substr(0, classValue.indexOf(':'));
+    const value = classValue.substr(classValue.indexOf(':') + 1);
+
+    for (let i = 0; i < rules.length; i++) {
+        if (rules[i].selectorText === className) {
+            rules[i].style[style] = value;
+            return;
+        }
+    }
+
     let mediaQuery = '';
     if (className.indexOf('@media') >= 0) {
         mediaQuery = '}';
@@ -989,17 +1000,6 @@ export function fileSizeToString(bytes) {
     return bytes + 'B';
 }
 
-// Converts a filename (like those attached to Post objects) to a url that can be used to retrieve attachments from the server.
-export function getFileUrl(filename) {
-    return Client.getFilesRoute() + '/get' + filename;
-}
-
-// Gets the name of a file (including extension) from a given url or file path.
-export function getFileName(path) {
-    var split = path.split('/');
-    return split[split.length - 1];
-}
-
 // Gets the websocket port to use. Configurable on the server.
 export function getWebsocketPort(protocol) {
     if ((/^wss:/).test(protocol)) { // wss://
@@ -1071,13 +1071,6 @@ export function importSlack(file, success, error) {
     Client.importSlack(formData, success, error);
 }
 
-export function getShortenedTeamURL(teamURL = '') {
-    if (teamURL.length > 35) {
-        return teamURL.substring(0, 10) + '...' + teamURL.substring(teamURL.length - 12, teamURL.length) + '/';
-    }
-    return teamURL + '/';
-}
-
 export function windowWidth() {
     return $(window).width();
 }
@@ -1086,25 +1079,15 @@ export function windowHeight() {
     return $(window).height();
 }
 
-// Use when sorting multiple channels or teams by their `display_name` field
-export function sortByDisplayName(a, b) {
-    let aDisplayName = '';
-    let bDisplayName = '';
+// Use when sorting multiple teams by their `display_name` field
+export function sortTeamsByDisplayName(a, b) {
+    const locale = LocalizationStore.getLocale();
 
-    if (a && a.display_name) {
-        aDisplayName = a.display_name.toLowerCase();
-    }
-    if (b && b.display_name) {
-        bDisplayName = b.display_name.toLowerCase();
+    if (a.display_name !== b.display_name) {
+        return a.display_name.localeCompare(b.display_name, locale, {numeric: true});
     }
 
-    if (aDisplayName < bDisplayName) {
-        return -1;
-    }
-    if (aDisplayName > bDisplayName) {
-        return 1;
-    }
-    return 0;
+    return a.name.localeCompare(b.name, locale, {numeric: true});
 }
 
 export function getChannelTerm(channelType) {
@@ -1163,7 +1146,7 @@ export function clearFileInput(elm) {
 }
 
 export function isPostEphemeral(post) {
-    return post.type === Constants.POST_TYPE_EPHEMERAL || post.state === Constants.POST_DELETED;
+    return post.type === Constants.PostTypes.EPHEMERAL || post.state === Constants.POST_DELETED;
 }
 
 export function getRootId(post) {
@@ -1277,18 +1260,6 @@ export function isValidPassword(password) {
     return errorMsg;
 }
 
-export function getSiteURL() {
-    if (global.mm_config.SiteURL) {
-        return global.mm_config.SiteURL;
-    }
-
-    if (window.location.origin) {
-        return window.location.origin;
-    }
-
-    return window.location.protocol + '//' + window.location.hostname + (window.location.port ? ':' + window.location.port : '');
-}
-
 export function handleFormattedTextClick(e) {
     const mentionAttribute = e.target.getAttributeNode('data-mention');
     const hashtagAttribute = e.target.getAttributeNode('data-hashtag');
@@ -1315,4 +1286,20 @@ export function handleFormattedTextClick(e) {
         e.preventDefault();
         browserHistory.push('/' + TeamStore.getCurrent().name + '/channels/' + channelMentionAttribute.value);
     }
+}
+
+export function isEmptyObject(object) {
+    if (!object) {
+        return true;
+    }
+
+    if (Object.keys(object).length === 0) {
+        return true;
+    }
+
+    return false;
+}
+
+export function updateWindowDimensions(component) {
+    component.setState({width: window.innerWidth, height: window.innerHeight});
 }

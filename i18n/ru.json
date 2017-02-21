@@ -73,7 +73,7 @@
   },
   {
     "id": "api.admin.init.debug",
-    "translation": "Инициализация административных маршрутов api"
+    "translation": "Инициализация административных маршрутов API"
   },
   {
     "id": "api.admin.recycle_db_end.warn",
@@ -197,7 +197,7 @@
   },
   {
     "id": "api.channel.create_channel.direct_channel.app_error",
-    "translation": "Нужно использовать createDirectChannel сервис API для создания канала личных сообщений"
+    "translation": "Нужно использовать createDirectChannel из API для создания канала личных сообщений"
   },
   {
     "id": "api.channel.create_channel.invalid_character.app_error",
@@ -217,7 +217,7 @@
   },
   {
     "id": "api.channel.create_direct_channel.invalid_user.app_error",
-    "translation": "Недопустимый идентификатор другого пользователя "
+    "translation": "Неверный ID пользователя при создании приватного канала"
   },
   {
     "id": "api.channel.delete_channel.archived",
@@ -241,11 +241,11 @@
   },
   {
     "id": "api.channel.delete_channel.incoming_webhook.error",
-    "translation": "Обнаружена ошибка при удалении входящего webhook'a, id=%v"
+    "translation": "Обнаружена ошибка при удалении входящего вебхукa, id=%v"
   },
   {
     "id": "api.channel.delete_channel.outgoing_webhook.error",
-    "translation": "Обнаружена ошибка при удалении исходящего webhook'a, id=%v"
+    "translation": "Обнаружена ошибка при удалении исходящего вебхукa, id=%v"
   },
   {
     "id": "api.channel.delete_channel.permissions.app_error",
@@ -273,7 +273,7 @@
   },
   {
     "id": "api.channel.init.debug",
-    "translation": "Инициализация канала маршрутов api"
+    "translation": "Инициализация API каналов"
   },
   {
     "id": "api.channel.join_channel.permissions.app_error",
@@ -301,19 +301,19 @@
   },
   {
     "id": "api.channel.post_update_channel_displayname_message_and_forget.create_post.error",
-    "translation": "Ну удалось отправить сообщение об обновлении отображаемого имени канала %v"
+    "translation": "Ну удалось отправить сообщение об обновлении отображаемого имени канала"
   },
   {
     "id": "api.channel.post_update_channel_displayname_message_and_forget.retrieve_user.error",
-    "translation": "Не удалось получить пользователя при попытке обновления отображаемого имени канала %v"
+    "translation": "Не удалось получить пользователя при попытке обновления сообщения заголовка канала"
   },
   {
     "id": "api.channel.post_update_channel_displayname_message_and_forget.updated_from",
     "translation": "%s обновил отображаемое имя канала с: %s на: %s"
   },
   {
-    "id": "api.channel.post_update_channel_header_message_and_forget.join_leave.error",
-    "translation": "Не удалось отправить join/leave сообщение %v"
+    "id": "api.channel.post_update_channel_header_message_and_forget.post.error",
+    "translation": "Не удалось опубликовать сообщение обновления заголовка канала"
   },
   {
     "id": "api.channel.post_update_channel_header_message_and_forget.removed",
@@ -321,7 +321,7 @@
   },
   {
     "id": "api.channel.post_update_channel_header_message_and_forget.retrieve_user.error",
-    "translation": "Не удалось получить пользователя при попытке обновления сообщения заголовка канала %v"
+    "translation": "Не удалось получить пользователя при попытке обновления сообщения заголовка канала"
   },
   {
     "id": "api.channel.post_update_channel_header_message_and_forget.updated_from",
@@ -333,7 +333,7 @@
   },
   {
     "id": "api.channel.post_user_add_remove_message_and_forget.error",
-    "translation": "Не удалось отправить сообщение о присоединении/выходе %v"
+    "translation": "Не удалось отправить сообщение о присоединении/отсоединении"
   },
   {
     "id": "api.channel.remove.default.app_error",
@@ -381,7 +381,7 @@
   },
   {
     "id": "api.command.delete.app_error",
-    "translation": "Несоответствующие права для команды удаления"
+    "translation": "Отсутствуют права на команду удаления"
   },
   {
     "id": "api.command.disabled.app_error",
@@ -421,7 +421,7 @@
   },
   {
     "id": "api.command.init.debug",
-    "translation": "Инициализация маршрутов api комманд"
+    "translation": "Инициализация API команд"
   },
   {
     "id": "api.command.invite_people.desc",
@@ -453,7 +453,7 @@
   },
   {
     "id": "api.command.regen.app_error",
-    "translation": "Несоответствующие права для генерации нового токена"
+    "translation": "Отсутствуют права на пересоздание токена"
   },
   {
     "id": "api.command.team_mismatch.app_error",
@@ -485,7 +485,7 @@
   },
   {
     "id": "api.command_collapse.success",
-    "translation": "Image links now collapse by default"
+    "translation": "Теперь ссылки на изображения сокращаются"
   },
   {
     "id": "api.command_echo.create.app_error",
@@ -509,7 +509,7 @@
   },
   {
     "id": "api.command_echo.message.app_error",
-    "translation": "A message must be provided with the /echo command."
+    "translation": "Перед сообщение должна быть команда /echo."
   },
   {
     "id": "api.command_echo.name",
@@ -525,11 +525,11 @@
   },
   {
     "id": "api.command_expand.success",
-    "translation": "Image links now expand by default"
+    "translation": "Теперь ссылки на изображения показываются полностью"
   },
   {
     "id": "api.command_expand_collapse.fail.app_error",
-    "translation": "Произошла ошибка при расширении предварительного просмотра"
+    "translation": "Произошла ошибка при открытии превью"
   },
   {
     "id": "api.command_join.desc",
@@ -589,11 +589,11 @@
   },
   {
     "id": "api.command_msg.dm_fail.app_error",
-    "translation": "При создании персонального сообщения произошла ошибка."
+    "translation": "При создании канала личных сообщений произошла ошибка."
   },
   {
     "id": "api.command_msg.fail.app_error",
-    "translation": "Ошибка при передачи сообщения пользователю."
+    "translation": "Произошла ошибка при передаче сообщения пользователю."
   },
   {
     "id": "api.command_msg.hint",
@@ -601,7 +601,7 @@
   },
   {
     "id": "api.command_msg.list.app_error",
-    "translation": "При перечислении пользователей произошла ошибка."
+    "translation": "Произошла ошибка при перечислении пользователей."
   },
   {
     "id": "api.command_msg.missing.app_error",
@@ -641,11 +641,11 @@
   },
   {
     "id": "api.command_shortcuts.browser.channel_next",
-    "translation": "{{.ChannelNextCmd}}: Next channel in your history\n"
+    "translation": "{{.ChannelNextCmd}}: Следующий канал в вашей истории\n"
   },
   {
     "id": "api.command_shortcuts.browser.channel_next.cmd",
-    "translation": "ALT+RIGHT"
+    "translation": "ALT+ВПРАВО"
   },
   {
     "id": "api.command_shortcuts.browser.channel_next.cmd_mac",
@@ -653,11 +653,11 @@
   },
   {
     "id": "api.command_shortcuts.browser.channel_prev",
-    "translation": "{{.ChannelPrevCmd}}: Previous channel in your history\n"
+    "translation": "{{.ChannelPrevCmd}}: Предыдущий канал в вашей истории\n"
   },
   {
     "id": "api.command_shortcuts.browser.channel_prev.cmd",
-    "translation": "ALT+LEFT"
+    "translation": "ALT+ВЛЕВО"
   },
   {
     "id": "api.command_shortcuts.browser.channel_prev.cmd_mac",
@@ -665,27 +665,27 @@
   },
   {
     "id": "api.command_shortcuts.browser.font_decrease",
-    "translation": "{{.CmdOrCtrl}}+MINUS: Decrease font size (zoom out)\n"
+    "translation": "{{.CmdOrCtrl}}+МИНУС: Уменьшить размер шрифта (отдалить)\n"
   },
   {
     "id": "api.command_shortcuts.browser.font_increase",
-    "translation": "{{.CmdOrCtrl}}+PLUS: Increase font size (zoom in)\n"
+    "translation": "{{.CmdOrCtrl}}+ПЛЮС: Увеличить размер шрифта (приблизить)\n"
   },
   {
     "id": "api.command_shortcuts.browser.header",
-    "translation": "#### Built-in Browser Commands\n\n"
+    "translation": "#### Встроенные команды\n\n"
   },
   {
     "id": "api.command_shortcuts.browser.highlight_next",
-    "translation": "SHIFT+DOWN (in input field): Highlight text to the next line\n"
+    "translation": "SHIFT+ВНИЗ (в поле ввода): Выделить текст до следующей строки\n"
   },
   {
     "id": "api.command_shortcuts.browser.highlight_prev",
-    "translation": "SHIFT+UP (in input field): Highlight text to the previous line\n"
+    "translation": "SHIFT+ВВЕРХ (в поле ввода): Выделить текст до предыдущей строки\n"
   },
   {
     "id": "api.command_shortcuts.browser.newline",
-    "translation": "SHIFT+ENTER (in input field): Create a new line\n"
+    "translation": "SHIFT+ВВОД (в поле ввода): Создать новую строку\n"
   },
   {
     "id": "api.command_shortcuts.cmd",
@@ -705,7 +705,7 @@
   },
   {
     "id": "api.command_shortcuts.files.upload",
-    "translation": "{{.CmdOrCtrl}}+U: Upload file(s)\n\n"
+    "translation": "{{.CmdOrCtrl}}+U: Загрузить файл(ы)\n\n"
   },
   {
     "id": "api.command_shortcuts.header",
@@ -713,19 +713,19 @@
   },
   {
     "id": "api.command_shortcuts.msgs.comp_channel",
-    "translation": "~[character]+TAB: Autocomplete channel beginning with [character]\n"
+    "translation": "~[character]+TAB: Автодополнение названия канала, начинающегося с символа [character]\n"
   },
   {
     "id": "api.command_shortcuts.msgs.comp_emoji",
-    "translation": ":[character]+TAB: Autocomplete emoji beginning with [character]\n\n"
+    "translation": ":[character]+TAB: Автодополнение эмодзи, начинающегося с символа [character]\n\n"
   },
   {
     "id": "api.command_shortcuts.msgs.comp_username",
-    "translation": "@[character]+TAB: Autocomplete @username beginning with [character]\n"
+    "translation": "@[character]+TAB: Автодополнение @имени пользователя, начинающегося с символа [character]\n"
   },
   {
     "id": "api.command_shortcuts.msgs.edit",
-    "translation": "UP (in empty input field): Edit your last message in the current channel\n"
+    "translation": "ВВЕРХ (в пустом поле ввода): Редактировать ваше последнее сообщение в этом канале\n"
   },
   {
     "id": "api.command_shortcuts.msgs.header",
@@ -733,15 +733,15 @@
   },
   {
     "id": "api.command_shortcuts.msgs.mark_as_read",
-    "translation": "ESC: Mark all messages in the current channel as read\n"
+    "translation": "ESC: Пометить все сообщения в текущем канале как прочитанные\n"
   },
   {
     "id": "api.command_shortcuts.msgs.reprint_next",
-    "translation": "{{.CmdOrCtrl}}+DOWN (in empty input field): Reprint the next message or slash command you entered\n"
+    "translation": "{{.CmdOrCtrl}}+ВНИЗ (в пустом поле ввода): Ввести следующее сообщение или команду\n"
   },
   {
     "id": "api.command_shortcuts.msgs.reprint_prev",
-    "translation": "{{.CmdOrCtrl}}+UP (in empty input field): Reprint the previous message or slash command you entered\n"
+    "translation": "{{.CmdOrCtrl}}+ВВЕРХ (в пустом поле ввода): Ввести предыдущее сообщение или команду\n"
   },
   {
     "id": "api.command_shortcuts.name",
@@ -753,31 +753,31 @@
   },
   {
     "id": "api.command_shortcuts.nav.next",
-    "translation": "ALT+DOWN: Next channel or direct message in left hand sidebar\n"
+    "translation": "ALT+ВНИЗ: Следующий канал или диалог в левом боковом меню\n"
   },
   {
     "id": "api.command_shortcuts.nav.prev",
-    "translation": "ALT+UP: Previous channel or direct message in left hand sidebar\n"
+    "translation": "ALT+ВВЕРХ: Предыдущий канал или диалог в левом боковом меню\n"
   },
   {
     "id": "api.command_shortcuts.nav.recent_mentions",
-    "translation": "{{.CmdOrCtrl}}+SHIFT+M: Open recent mentions\n\n"
+    "translation": "{{.CmdOrCtrl}}+SHIFT+M: Открыть недавние упоминания\n\n"
   },
   {
     "id": "api.command_shortcuts.nav.settings",
-    "translation": "{{.CmdOrCtrl}}+SHIFT+A: Open account settings\n"
+    "translation": "{{.CmdOrCtrl}}+SHIFT+A: Открыть настройки аккаунта\n"
   },
   {
     "id": "api.command_shortcuts.nav.switcher",
-    "translation": "{{.CmdOrCtrl}}+K: Open a quick channel switcher dialog\n"
+    "translation": "{{.CmdOrCtrl}}+K: Открыть диалог переключения между каналами\n"
   },
   {
     "id": "api.command_shortcuts.nav.unread_next",
-    "translation": "ALT+SHIFT+DOWN: Next channel or direct message in left hand sidebar with unread messages\n"
+    "translation": "ALT+SHIFT+ВНИЗ: Следующий канал или диалог в левом боковом меню с непрочитанными сообщениями\n"
   },
   {
     "id": "api.command_shortcuts.nav.unread_prev",
-    "translation": "ALT+SHIFT+UP: Previous channel or direct message in left hand sidebar with unread messages\n"
+    "translation": "ALT+SHIFT+ВВЕРХ: Предыдущий канал или диалог в левом боковом меню с непрочитанными сообщениями\n"
   },
   {
     "id": "api.command_shrug.desc",
@@ -796,16 +796,28 @@
     "translation": "Извините, мы не смогли найти страницу."
   },
   {
+    "id": "api.context.invalid_body_param.app_error",
+    "translation": "Неверно или пропущено {{.Name}} в теле запроса"
+  },
+  {
     "id": "api.context.invalid_param.app_error",
     "translation": "Неверный параметр {{.Name}}"
   },
   {
+    "id": "api.context.invalid_session.error",
+    "translation": "Неверная сессия err=%v"
+  },
+  {
     "id": "api.context.invalid_team_url.debug",
-    "translation": "URL сайта команды доступен, но не действителен. URL сайта команды не должны использоваться в функциях API."
+    "translation": "Адрес команды доступен, но не корректен. Он не должен использоваться в API или в тех функциях, что независимы от неё."
   },
   {
     "id": "api.context.invalid_token.error",
-    "translation": "Неверный токен сессии %v, ошибка=%v"
+    "translation": "Неверный токен сессии={{.Token}}, err={{.Error}}"
+  },
+  {
+    "id": "api.context.invalid_url_param.app_error",
+    "translation": "Неверный или пропущенный параметр {{.Name}} в запросе URL"
   },
   {
     "id": "api.context.invalidate_all_caches",
@@ -923,19 +935,19 @@
   },
   {
     "id": "api.emoji.create.permissions.app_error",
-    "translation": "Несоответствующие права для создания смайлика."
+    "translation": "Отсутствуют права на создание эмодзи."
   },
   {
     "id": "api.emoji.create.too_large.app_error",
-    "translation": "Невозможно создать смайлик. Изображение должно быть не более 1 Мб."
+    "translation": "Невозможно создать эмодзи. Изображение должно быть не более 1 MB."
   },
   {
     "id": "api.emoji.delete.delete_reactions.app_error",
-    "translation": "Unable to delete reactions when deleting emoji with emoji name %v"
+    "translation": "Не удалось удалить реакции при удалении эмодзи с именем %v"
   },
   {
     "id": "api.emoji.delete.permissions.app_error",
-    "translation": "Несоответствующие права для удаления смайлика."
+    "translation": "Отсутствуют права на удаление эмодзи."
   },
   {
     "id": "api.emoji.disabled.app_error",
@@ -951,7 +963,7 @@
   },
   {
     "id": "api.emoji.init.debug",
-    "translation": "Инициализация маршрутов api смайликов"
+    "translation": "Инициализация API эмодзи"
   },
   {
     "id": "api.emoji.storage.app_error",
@@ -1015,7 +1027,7 @@
   },
   {
     "id": "api.file.get_public_link.no_post.app_error",
-    "translation": "Не удалось получить публичную ссылку на файл. Файл должен быть прикреплен к сообщению, которое может быть прочитано текущим пользователем."
+    "translation": "Не удалось получить публичную ссылку для файла. Файл должен быть прикреплен к сообщению, которое может быть прочитано текущим пользователем."
   },
   {
     "id": "api.file.handle_images_forget.decode.error",
@@ -1039,7 +1051,7 @@
   },
   {
     "id": "api.file.init.debug",
-    "translation": "Инициализация маршрутов файлового api"
+    "translation": "Инициализация API файлов"
   },
   {
     "id": "api.file.migrate_filenames_to_file_infos.channel.app_error",
@@ -1171,7 +1183,11 @@
   },
   {
     "id": "api.general.init.debug",
-    "translation": "Инициализация основных маршрутов api"
+    "translation": "Инициализация API основных маршрутов"
+  },
+  {
+    "id": "api.import.import_post.attach_files.error",
+    "translation": "Ошибка добавления вложения к сообщению. postId=%v, fileIds=%v, message=%v"
   },
   {
     "id": "api.import.import_post.saving.debug",
@@ -1343,7 +1359,7 @@
   },
   {
     "id": "api.oauth.regenerate_secret.app_error",
-    "translation": "Несоответствующие права для восстановления секрета приложения OAuth2"
+    "translation": "Несоответствующие права для создания новой секретной строки приложения OAuth2"
   },
   {
     "id": "api.oauth.register_oauth_app.turn_off.app_error",
@@ -1464,24 +1480,8 @@
     "translation": "У вас нет соответствующих прав"
   },
   {
-    "id": "api.post.handle_post_events_and_forget.channel.error",
-    "translation": "Возникла ошибка получения канала, channel_id=%s, err=%v"
-  },
-  {
     "id": "api.post.handle_post_events_and_forget.members.error",
     "translation": "Не удалось получить членов канала channel_id=%v, err=%v"
-  },
-  {
-    "id": "api.post.handle_post_events_and_forget.profiles.error",
-    "translation": "Не удалось извлечь профили пользователей team_id=%v, err=%v"
-  },
-  {
-    "id": "api.post.handle_post_events_and_forget.team.error",
-    "translation": "Возникла ошибка получения команды, team_id=%s, err=%v"
-  },
-  {
-    "id": "api.post.handle_post_events_and_forget.user.error",
-    "translation": "Возникла ошибка получения пользователя, user_id=%s, err=%v"
   },
   {
     "id": "api.post.handle_webhook_events_and_forget.create_post.error",
@@ -1489,11 +1489,7 @@
   },
   {
     "id": "api.post.handle_webhook_events_and_forget.event_post.error",
-    "translation": "Ошибка отправки события, err=%s"
-  },
-  {
-    "id": "api.post.handle_webhook_events_and_forget.getting.error",
-    "translation": "Ошибка получения вебхуков для команды, err=%v"
+    "translation": "Ошибка события POST, err=%s"
   },
   {
     "id": "api.post.init.debug",
@@ -1501,7 +1497,7 @@
   },
   {
     "id": "api.post.make_direct_channel_visible.get_2_members.error",
-    "translation": "Не удалось получить 2 участников для прямого канала channel_id=%v"
+    "translation": "Не удалось получить 2 участников для канала личных сообщений channel_id={{.ChannelId}}"
   },
   {
     "id": "api.post.make_direct_channel_visible.get_members.error",
@@ -1516,20 +1512,16 @@
     "translation": "Ошибка обновления настроек канала user_id=%v other_user_id=%v err=%v"
   },
   {
-    "id": "api.post.notification.here.warn",
-    "translation": "Невозможно отправить уведомление активным @пользователям, err=%v"
-  },
-  {
     "id": "api.post.notification.member_profile.warn",
     "translation": "Невозможно получить профиль участников канала, user_id=%v"
   },
   {
-    "id": "api.post.send_notifications_and_forget.clear_push_notification.debug",
-    "translation": "Очистка push-уведомлений для %v в channel_id %v"
+    "id": "api.post.send_notifications.user_id.debug",
+    "translation": "Создатель сообщения отсутствует в канале, уведомление не отправлено post_id=%v channel_id=%v user_id=%v"
   },
   {
-    "id": "api.post.send_notifications_and_forget.comment_thread.error",
-    "translation": "Ошибка получения уведомлений о комментариях к теме обсуждения root_post_id=%v err=%v"
+    "id": "api.post.send_notifications_and_forget.clear_push_notification.debug",
+    "translation": "Очистка push-уведомлений для %v в channel_id %v"
   },
   {
     "id": "api.post.send_notifications_and_forget.files.error",
@@ -1577,23 +1569,11 @@
   },
   {
     "id": "api.post.send_notifications_and_forget.push_notification.error",
-    "translation": "Ошибка отправки push device_id=%v, err=%v"
-  },
-  {
-    "id": "api.post.send_notifications_and_forget.send.error",
-    "translation": "Не удалось отправить приглашение по электронной почте email=%v err=%v"
+    "translation": "Не удалось отправить push-уведомление device_id={{.DeviceId}}, err={{.Error}}"
   },
   {
     "id": "api.post.send_notifications_and_forget.sent",
     "translation": "{{.Prefix}} {{.Filenames}} отправлен"
-  },
-  {
-    "id": "api.post.send_notifications_and_forget.sessions.error",
-    "translation": "Не удалось получить сеанс в уведомлении id=%v, err=%v"
-  },
-  {
-    "id": "api.post.send_notifications_and_forget.user_id.error",
-    "translation": "Пост user_id не возвращён GetProfiles user_id=%v"
   },
   {
     "id": "api.post.update_mention_count_and_forget.update_error",
@@ -1608,8 +1588,16 @@
     "translation": "У вас нет соответствующих прав"
   },
   {
+    "id": "api.post.update_post.permissions_denied.app_error",
+    "translation": "Возможность редактирования сообщений была отключена. Пожалуйста, обратитесь к Вашему системному администратору за подробностями."
+  },
+  {
     "id": "api.post.update_post.permissions_details.app_error",
     "translation": "Уже удален id={{.PostId}}"
+  },
+  {
+    "id": "api.post.update_post.permissions_time_limit.app_error",
+    "translation": "Редактирование сообщений разрешено только {{.timeLimit}} секунд после публикации. За подробностями обратитесь к Вашему системному администратору."
   },
   {
     "id": "api.post.update_post.system_message.app_error",
@@ -1629,7 +1617,7 @@
   },
   {
     "id": "api.preference.init.debug",
-    "translation": "Инициализация API"
+    "translation": "Инициализация API настроек"
   },
   {
     "id": "api.preference.save_preferences.decode.app_error",
@@ -1645,23 +1633,23 @@
   },
   {
     "id": "api.reaction.delete_reaction.mismatched_channel_id.app_error",
-    "translation": "Failed to delete reaction because channel ID does not match post ID in the URL"
+    "translation": "Не удалось удалить реакцию, так как в адресе идентификатор канала не совпал с идентификатором сообщения"
   },
   {
     "id": "api.reaction.init.debug",
-    "translation": "Инициализация административных маршрутов api"
+    "translation": "Инициализация API реакций"
   },
   {
     "id": "api.reaction.list_reactions.mismatched_channel_id.app_error",
-    "translation": "Failed to get reactions because channel ID does not match post ID in the URL"
+    "translation": "Не удалось получить реакции, так как в адресе идентификатор канала не совпал с идентификатором сообщения"
   },
   {
     "id": "api.reaction.save_reaction.mismatched_channel_id.app_error",
-    "translation": "Failed to save reaction because channel ID does not match post ID in the URL"
+    "translation": "Не удалось сохранить реакцию, так как в адресе идентификатор канала не совпал с идентификатором сообщения"
   },
   {
     "id": "api.reaction.send_reaction_event.post.app_error",
-    "translation": "Failed to get post when sending websocket event for reaction"
+    "translation": "Не удалось получить сообщение при отправке websocket-события реакции"
   },
   {
     "id": "api.saml.save_certificate.app_error",
@@ -1713,11 +1701,11 @@
   },
   {
     "id": "api.slackimport.slack_add_bot_user.email_pwd",
-    "translation": "Slack Bot/Integration Posts Import User: Email, Password: {{.Email}}, {{.Password}}\r\n"
+    "translation": "Пользователь для импорта сообщений ботов и интеграций Slack: {{.Email}}, {{.Password}}\r\n"
   },
   {
     "id": "api.slackimport.slack_add_bot_user.unable_import",
-    "translation": "Unable to import Slack Bot/Integration Posts Import User: {{.Username}}\r\n"
+    "translation": "Не удалось импортировать пользователя для импорта сообщений ботов и интеграций Slack: {{.Username}}\r\n"
   },
   {
     "id": "api.slackimport.slack_add_channels.added",
@@ -1749,7 +1737,7 @@
   },
   {
     "id": "api.slackimport.slack_add_posts.bot_user_no_exists.warn",
-    "translation": "Slack Importer: Not importing bot message as the bot-importing user does not exist."
+    "translation": "Импорт Slack: Не импортируем сообщение бота. Пользователь для импорта ботов не найден."
   },
   {
     "id": "api.slackimport.slack_add_posts.msg_no_comment.debug",
@@ -1761,7 +1749,7 @@
   },
   {
     "id": "api.slackimport.slack_add_posts.no_bot_id.warn",
-    "translation": "Slack Importer: Not importing bot message due to lack of BotId field."
+    "translation": "Импорт Slack: Не импортируем сообщение бота. Отсутствует поле BotId."
   },
   {
     "id": "api.slackimport.slack_add_posts.unsupported.warn",
@@ -1769,7 +1757,7 @@
   },
   {
     "id": "api.slackimport.slack_add_posts.upload_file_not_found.warn",
-    "translation": "Не найден файл с идентификатором {{.FileId}}, в экспорте из Слак, для загрузки сообщения"
+    "translation": "Не найден файл с идентификатором {{.FileId}} в экспорте из Slack для загрузки сообщения"
   },
   {
     "id": "api.slackimport.slack_add_posts.upload_file_not_in_json.warn",
@@ -1805,7 +1793,7 @@
   },
   {
     "id": "api.slackimport.slack_add_users.merge_existing_failed",
-    "translation": "Tried to merge user with existing account: {{.Email}}, {{.Username}}, but failed to add the user to this team.\r\n"
+    "translation": "При слиянии с существующим аккаунтом: {{.Email}}, {{.Username}}, возникла ошибка добавления пользователя в команду.\r\n"
   },
   {
     "id": "api.slackimport.slack_add_users.unable_import",
@@ -1825,7 +1813,7 @@
   },
   {
     "id": "api.slackimport.slack_deactivate_bot_user.failed_to_deactivate",
-    "translation": "Slack Importer: Failed to deactivate the bot-importing user."
+    "translation": "Импорт Slack: Не удалось деактивировать пользователя для импорта ботов."
   },
   {
     "id": "api.slackimport.slack_import.log",
@@ -1885,7 +1873,7 @@
   },
   {
     "id": "api.status.init.debug",
-    "translation": "Инициализация API"
+    "translation": "Инициализация API статусов"
   },
   {
     "id": "api.status.last_activity.error",
@@ -1949,11 +1937,11 @@
   },
   {
     "id": "api.team.import_team.unavailable.app_error",
-    "translation": "Malformed request: filesize field is not present."
+    "translation": "Неправильный запрос: отсутствует поле \"filesize\"."
   },
   {
     "id": "api.team.init.debug",
-    "translation": "Инициализация API"
+    "translation": "Инициализация API команд"
   },
   {
     "id": "api.team.invite_members.admin",
@@ -2089,7 +2077,7 @@
   },
   {
     "id": "api.templates.invite_body.extra_info",
-    "translation": "Mattermost позволяет обмениваться сообщениями и файлами с компьютера или телефона, с возможностью моментального поиска и архивирования. После того, как Вы присоединитесь к команде <strong>{{.TeamDisplayName}}</strong>, Вы сможете получить доступ к этим функциям в любое время через Веб-сайт:<br/><br/><a href='{{.TeamURL}}'>{{.TeamURL}}</a>"
+    "translation": "Mattermost позволяет обмениваться сообщениями и файлами с компьютера или телефона с возможностью моментального поиска и архивирования. После того, как Вы присоединитесь к команде <strong>{{.TeamDisplayName}}</strong>, Вы сможете получить доступ к этим функциям в любое время через Веб-сайт:<br/><br/><a href='{{.TeamURL}}'>{{.TeamURL}}</a>"
   },
   {
     "id": "api.templates.invite_body.info",
@@ -2105,23 +2093,23 @@
   },
   {
     "id": "api.templates.mfa_activated_body.info",
-    "translation": "Multi-factor authentication has been added to your account on {{ .SiteURL }}.<br>If this change wasn't initiated by you, please contact your system administrator."
+    "translation": "Многофакторная проверка подлинности была активирована для вашего аккаунта на {{ .SiteURL }}.<br>Если данное изменение сделано не вами, пожалуйста, обратитесь к администратору системы."
   },
   {
     "id": "api.templates.mfa_activated_body.title",
-    "translation": "Multi-factor authentication was added"
+    "translation": "Многофакторная проверка подлинности активирована"
   },
   {
     "id": "api.templates.mfa_change_subject",
-    "translation": "Your MFA has been updated on {{ .SiteName }}"
+    "translation": "Ваша MFA обновлена на {{ .SiteName }}"
   },
   {
     "id": "api.templates.mfa_deactivated_body.info",
-    "translation": "Multi-factor authentication has been removed from your account on {{ .SiteURL }}.<br>If this change wasn't initiated by you, please contact your system administrator."
+    "translation": "Многофакторная проверка подлинности отключена для вашего аккаунта на {{ .SiteURL }}.<br>Если данное изменение сделано не вами, пожалуйста, обратитесь к администратору системы."
   },
   {
     "id": "api.templates.mfa_deactivated_body.title",
-    "translation": "Multi-factor authentication was removed"
+    "translation": "Многофакторная проверка подлинности отключена"
   },
   {
     "id": "api.templates.password_change_body.info",
@@ -2269,7 +2257,7 @@
   },
   {
     "id": "api.user.add_direct_channels_and_forget.failed.error",
-    "translation": "Не удалось добавить предпочтения прямого канала для пользователя user_id=%s, team_id=%s, err=%v"
+    "translation": "Не удалось применить настройки приватного канала для пользователя: user_id={{.UserId}}, team_id={{.TeamId}}, err={{.Error}}"
   },
   {
     "id": "api.user.authorize_oauth_user.bad_response.app_error",
@@ -2441,7 +2429,7 @@
   },
   {
     "id": "api.user.login.not_provided.app_error",
-    "translation": "Must provide either user ID, or team name and user email"
+    "translation": "Необходимо указать либо идентификатор пользователя, либо имя команды и электронную почту пользователя"
   },
   {
     "id": "api.user.login.not_verified.app_error",
@@ -2521,19 +2509,19 @@
   },
   {
     "id": "api.user.send_email_change_email_and_forget.error",
-    "translation": "Не удалось отправить письмо с уведомленим о смене адреса электронной почты err=%v"
+    "translation": "Не удалось отправить письмо с уведомленим о смене адреса электронной почты"
   },
   {
     "id": "api.user.send_email_change_username_and_forget.error",
-    "translation": "Не удалось отправить письмо с уведомленим о смене имени пользователя err=%v"
+    "translation": "Не удалось отправить письмо с уведомленим о смене имени пользователя"
   },
   {
     "id": "api.user.send_email_change_verify_email_and_forget.error",
-    "translation": "Не удалось отправить письмо с подтверждением смены адреса электронной почты err=%v"
+    "translation": "Не удалось отправить письмо с подтверждением смены адреса электронной почты"
   },
   {
     "id": "api.user.send_password_change_email_and_forget.error",
-    "translation": "Не удалось отправить письмо об обновлении пароля err=%v"
+    "translation": "Не удалось отправить письмо об обновлении пароля"
   },
   {
     "id": "api.user.send_password_reset.find.app_error",
@@ -2549,15 +2537,15 @@
   },
   {
     "id": "api.user.send_sign_in_change_email_and_forget.error",
-    "translation": "Не удалось отправить письмо об обновлении пароля err=%v"
+    "translation": "Не удалось отправить письмо об обновлении пароля"
   },
   {
     "id": "api.user.send_verify_email_and_forget.failed.error",
-    "translation": "Не удалось отправить письмо с подтверждением err=%v"
+    "translation": "Не удалось отправить письмо с подтверждением"
   },
   {
     "id": "api.user.send_welcome_email_and_forget.failed.error",
-    "translation": "Не удалось отправить приветственное письмо err=%v"
+    "translation": "Не удалось отправить приветственное письмо"
   },
   {
     "id": "api.user.update_active.no_deactivate_ldap.app_error",
@@ -2677,7 +2665,7 @@
   },
   {
     "id": "api.web_socket.init.debug",
-    "translation": "Инициализация API сокетов"
+    "translation": "Инициализация API веб-сокетов"
   },
   {
     "id": "api.web_socket_handler.log.error",
@@ -2693,11 +2681,11 @@
   },
   {
     "id": "api.webhook.create_incoming.disabled.app_errror",
-    "translation": "Команды были отключены системным администратором."
+    "translation": "Входящие вебхуки были отключены системным администратором."
   },
   {
     "id": "api.webhook.create_outgoing.disabled.app_error",
-    "translation": "Команды были отключены системным администратором."
+    "translation": "Исходящие вебхуки были отключены системным администратором."
   },
   {
     "id": "api.webhook.create_outgoing.intersect.app_error",
@@ -2705,7 +2693,7 @@
   },
   {
     "id": "api.webhook.create_outgoing.not_open.app_error",
-    "translation": "Исходящие webhooks могут быть созданы только для общественных каналов."
+    "translation": "Исходящие вебхуки могут быть созданы только для общественных каналов."
   },
   {
     "id": "api.webhook.create_outgoing.permissions.app_error",
@@ -2717,47 +2705,47 @@
   },
   {
     "id": "api.webhook.delete_incoming.disabled.app_errror",
-    "translation": "Входящие webhooks отключены системным администратором."
+    "translation": "Входящие вебхуки отключены системным администратором."
   },
   {
     "id": "api.webhook.delete_incoming.permissions.app_errror",
-    "translation": "Несоответствующие права для удаления входящего вебхука"
+    "translation": "Отсутствуют права на удаление входящего вебхука"
   },
   {
     "id": "api.webhook.delete_outgoing.disabled.app_error",
-    "translation": "Исходящие webhooks отключены системным администратором."
+    "translation": "Исходящие вебхуки отключены системным администратором."
   },
   {
     "id": "api.webhook.delete_outgoing.permissions.app_error",
-    "translation": "Несоответствующие права для удаления исходящего вебхука"
+    "translation": "Отсутствуют права на удаление исходящего вебхука"
   },
   {
     "id": "api.webhook.get_incoming.disabled.app_error",
-    "translation": "Входящие webhooks отключены системным администратором."
+    "translation": "Входящие вебхуки отключены системным администратором."
   },
   {
     "id": "api.webhook.get_outgoing.disabled.app_error",
-    "translation": "Исходящие webhooks отключены системным администратором."
+    "translation": "Исходящие вебхуки отключены системным администратором."
   },
   {
     "id": "api.webhook.incoming.debug",
-    "translation": "Входящий webhook получен. Содержание="
+    "translation": "Входящий вебхук получен. Содержание="
   },
   {
     "id": "api.webhook.incoming.debug.error",
-    "translation": "Не удалось прочитать полезную нагрузку входящего webhook."
+    "translation": "Не удалось прочитать полезную нагрузку входящего вебхука."
   },
   {
     "id": "api.webhook.init.debug",
-    "translation": "Инициализация API webhook"
+    "translation": "Инициализация API вебхуков"
   },
   {
     "id": "api.webhook.regen_outgoing_token.disabled.app_error",
-    "translation": "Исходящие webhooks отключены системным администратором."
+    "translation": "Исходящие вебхуки отключены системным администратором."
   },
   {
     "id": "api.webhook.regen_outgoing_token.permissions.app_error",
-    "translation": "Несоответствующие права для генерации нового токена для исходящего вебхука"
+    "translation": "Отсутствуют права на пересоздание токена для исходящего вебхука"
   },
   {
     "id": "api.webrtc.disabled.app_error",
@@ -2765,15 +2753,243 @@
   },
   {
     "id": "api.webrtc.init.debug",
-    "translation": "Инициализация API WebRTC"
+    "translation": "Инициализация WebRTC API"
   },
   {
     "id": "api.webrtc.register_token.app_error",
     "translation": "Мы столкнулись с неожиданной ошибкой при попытке зарегистрировать токен WebRTC"
   },
   {
+    "id": "api.websocket.invalid_session.error",
+    "translation": "Неверная сессия err=%v"
+  },
+  {
     "id": "api.websocket_handler.invalid_param.app_error",
     "translation": "Недопустимый параметр {{.Name}}"
+  },
+  {
+    "id": "app.channel.create_channel.no_team_id.app_error",
+    "translation": "Для создания канала необходимо указать ID команды"
+  },
+  {
+    "id": "app.channel.post_update_channel_purpose_message.post.error",
+    "translation": "Не удалось обновить заголовок канала."
+  },
+  {
+    "id": "app.channel.post_update_channel_purpose_message.removed",
+    "translation": "%s удалил заголовок канала (был: %s)"
+  },
+  {
+    "id": "app.channel.post_update_channel_purpose_message.retrieve_user.error",
+    "translation": "Не удалось получить пользователя при попытке обновления сообщения заголовка канала %v"
+  },
+  {
+    "id": "app.channel.post_update_channel_purpose_message.updated_from",
+    "translation": "%s обновил заголовок канала с: %s на: %s"
+  },
+  {
+    "id": "app.channel.post_update_channel_purpose_message.updated_to",
+    "translation": "%s обновил заголовок канала на: %s"
+  },
+  {
+    "id": "app.import.bulk_import.file_scan.error",
+    "translation": "Ошибка чтения файла импорта."
+  },
+  {
+    "id": "app.import.bulk_import.json_decode.error",
+    "translation": "Ошибка обработки строки JSON."
+  },
+  {
+    "id": "app.import.import_channel.team_not_found.error",
+    "translation": "Ошибка импорта канала. Команда с именем \"{{.TeamName}}\" не найдена."
+  },
+  {
+    "id": "app.import.import_line.null_channel.error",
+    "translation": "Строка импорта данных содержит тип \"channel\", но объект channel равен null."
+  },
+  {
+    "id": "app.import.import_line.null_team.error",
+    "translation": "Строка импорта данных содержит тип \"team\", но объект team равен null."
+  },
+  {
+    "id": "app.import.import_line.null_user.error",
+    "translation": "Строка импорта данных содержит тип \"user\", но объект user равен null."
+  },
+  {
+    "id": "app.import.import_line.unknown_line_type.error",
+    "translation": "Строка импорта данных содержит неизвестный тип \"{{.Type}}\"."
+  },
+  {
+    "id": "app.import.validate_channel_import_data.create_at_zero.error",
+    "translation": "Если свойство Channel create_at присутствует, то оно не может быть равно 0."
+  },
+  {
+    "id": "app.import.validate_channel_import_data.display_name_length.error",
+    "translation": "Свойство Channel display_name не находится в пределах допустимых ограничений длины."
+  },
+  {
+    "id": "app.import.validate_channel_import_data.display_name_missing.error",
+    "translation": "Пропущено обязательное свойство channel: display_name."
+  },
+  {
+    "id": "app.import.validate_channel_import_data.header_length.error",
+    "translation": "Длина заголовка канала слишком большая."
+  },
+  {
+    "id": "app.import.validate_channel_import_data.name_characters.error",
+    "translation": "Имя канала содержит недопустимые символы."
+  },
+  {
+    "id": "app.import.validate_channel_import_data.name_length.error",
+    "translation": "Имя канала слишком длинное."
+  },
+  {
+    "id": "app.import.validate_channel_import_data.name_missing.error",
+    "translation": "Пропущено обязательное свойство channel: name"
+  },
+  {
+    "id": "app.import.validate_channel_import_data.purpose_length.error",
+    "translation": "Заголовок канала слишком длинный."
+  },
+  {
+    "id": "app.import.validate_channel_import_data.team_missing.error",
+    "translation": "Пропущено обязательное свойство channel: team"
+  },
+  {
+    "id": "app.import.validate_channel_import_data.type_invalid.error",
+    "translation": "Неверный тип канала."
+  },
+  {
+    "id": "app.import.validate_channel_import_data.type_missing.error",
+    "translation": "Пропущено обязательное свойство channel: type."
+  },
+  {
+    "id": "app.import.validate_team_import_data.allowed_domains_length.error",
+    "translation": "Свойство Team allowed_domains слишком длинное."
+  },
+  {
+    "id": "app.import.validate_team_import_data.create_at_zero.error",
+    "translation": "Если свойство Team create_at задано, то оно не может быть 0."
+  },
+  {
+    "id": "app.import.validate_team_import_data.description_length.error",
+    "translation": "Описание команды слишком длинное."
+  },
+  {
+    "id": "app.import.validate_team_import_data.display_name_length.error",
+    "translation": "Свойство Team display_name не находится в пределах допустимых ограничений длины."
+  },
+  {
+    "id": "app.import.validate_team_import_data.display_name_missing.error",
+    "translation": "Пропущено необходимое свойство team: display_name"
+  },
+  {
+    "id": "app.import.validate_team_import_data.name_characters.error",
+    "translation": "Имя команды содержит недопустимые символы."
+  },
+  {
+    "id": "app.import.validate_team_import_data.name_length.error",
+    "translation": "Имя команды слишком длинное."
+  },
+  {
+    "id": "app.import.validate_team_import_data.name_missing.error",
+    "translation": "Пропущено необходимое свойство team: name."
+  },
+  {
+    "id": "app.import.validate_team_import_data.name_reserved.error",
+    "translation": "Имя команды содержит зарезервированные слова."
+  },
+  {
+    "id": "app.import.validate_team_import_data.type_invalid.error",
+    "translation": "Неверный тип команды."
+  },
+  {
+    "id": "app.import.validate_team_import_data.type_missing.error",
+    "translation": "Пропущено необходимое свойство team: type"
+  },
+  {
+    "id": "app.import.validate_user_channels_import_data.channel_name_missing.error",
+    "translation": "Пропущено имя канала в «Участие пользователей на каналах»"
+  },
+  {
+    "id": "app.import.validate_user_channels_import_data.invalid_notify_props_desktop.error",
+    "translation": "Invalid Desktop NotifyProps for User's Channel Membership."
+  },
+  {
+    "id": "app.import.validate_user_channels_import_data.invalid_notify_props_mark_unread.error",
+    "translation": "Invalid MarkUnread NotifyProps for User's Channel Membership."
+  },
+  {
+    "id": "app.import.validate_user_channels_import_data.invalid_roles.error",
+    "translation": "Не правильные роли в «Участие пользователей на каналах»"
+  },
+  {
+    "id": "app.import.validate_user_import_data.auth_data_length.error",
+    "translation": "Структура AuthData пользователя слишком большая."
+  },
+  {
+    "id": "app.import.validate_user_import_data.auth_service_length.error",
+    "translation": "Если задан пользователь AuthService, то он не может быть пустым."
+  },
+  {
+    "id": "app.import.validate_user_import_data.email_length.error",
+    "translation": "E-Mail пользователя имеет неверную длину."
+  },
+  {
+    "id": "app.import.validate_user_import_data.email_missing.error",
+    "translation": "Пропущено обязательное свойство user: email."
+  },
+  {
+    "id": "app.import.validate_user_import_data.first_name_length.error",
+    "translation": "Имя пользователя слишком длинное."
+  },
+  {
+    "id": "app.import.validate_user_import_data.last_name_length.error",
+    "translation": "Фамилия пользователя слишком длинная."
+  },
+  {
+    "id": "app.import.validate_user_import_data.nickname_length.error",
+    "translation": "Псевдоним пользователя слишком длинный."
+  },
+  {
+    "id": "app.import.validate_user_import_data.position_length.error",
+    "translation": "Расположение пользователя слишком длинное."
+  },
+  {
+    "id": "app.import.validate_user_import_data.roles_invalid.error",
+    "translation": "Неверные роли пользователя."
+  },
+  {
+    "id": "app.import.validate_user_import_data.username_invalid.error",
+    "translation": "Неверное имя пользователя."
+  },
+  {
+    "id": "app.import.validate_user_import_data.username_missing.error",
+    "translation": "Пропущено необходимое свойство user: username."
+  },
+  {
+    "id": "app.import.validate_user_teams_import_data.invalid_roles.error",
+    "translation": "Неправильные роли в «Участие пользователей в команде»"
+  },
+  {
+    "id": "app.import.validate_user_teams_import_data.team_name_missing.error",
+    "translation": "Пропущено имя команды в «Участие пользователей в команде»"
+  },
+  {
+    "id": "authentication.permissions.create_team_roles.description",
+    "translation": "Возможность создавать новые команды"
+  },
+  {
+    "id": "authentication.permissions.create_team_roles.name",
+    "translation": "Создание команд"
+  },
+  {
+    "id": "authentication.permissions.manage_team_roles.description",
+    "translation": "Возможность изменять роли участников команды"
+  },
+  {
+    "id": "authentication.permissions.manage_team_roles.name",
+    "translation": "Управление ролями команды"
   },
   {
     "id": "authentication.permissions.team_invite_user.description",
@@ -2949,11 +3165,11 @@
   },
   {
     "id": "ent.metrics.starting.info",
-    "translation": "Metrics and profiling server is listening on %v"
+    "translation": "Сервер метрик и профилирования запускается на %v"
   },
   {
     "id": "ent.metrics.stopping.info",
-    "translation": "Metrics and profiling server is stopping on %v"
+    "translation": "Сервер метрик и профилирования останавливается на %v"
   },
   {
     "id": "ent.mfa.activate.authenticate.app_error",
@@ -3113,7 +3329,7 @@
   },
   {
     "id": "manaultesting.get_channel_id.no_found.debug",
-    "translation": "Невозможно найти канал %v, %v возможностей просмотрено"
+    "translation": "Невозможно найти канал: %v, найдено похожих %v "
   },
   {
     "id": "manaultesting.get_channel_id.unable.debug",
@@ -3133,7 +3349,7 @@
   },
   {
     "id": "manaultesting.manual_test.uid.debug",
-    "translation": "Нет uid в url"
+    "translation": "Отсутствует uid в URL"
   },
   {
     "id": "manaultesting.test_autolink.info",
@@ -3161,7 +3377,7 @@
   },
   {
     "id": "mattermost.load_license.find.warn",
-    "translation": "License key from https://mattermost.com required to unlock enterprise features."
+    "translation": "Требуется лицензионный ключ от https://mattermost.com для доступа к возможностям корпоративной редакции."
   },
   {
     "id": "mattermost.security_bulletin.error",
@@ -3361,7 +3577,7 @@
   },
   {
     "id": "model.command.is_valid.url.app_error",
-    "translation": "Invalid URL"
+    "translation": "Неверный URL"
   },
   {
     "id": "model.command.is_valid.url_http.app_error",
@@ -3397,7 +3613,7 @@
   },
   {
     "id": "model.config.is_valid.cluster_email_batching.app_error",
-    "translation": "Невозможно включить почтовые объединения при включенной кластеризации"
+    "translation": "Невозможно включить пакетную обработку почты при включенной кластеризации."
   },
   {
     "id": "model.config.is_valid.email_batching_buffer_size.app_error",
@@ -3624,6 +3840,10 @@
     "translation": "Неверное значение максимального количества открытых соединений в настройках SQL. Число должно быть положительным."
   },
   {
+    "id": "model.config.is_valid.time_between_user_typing.app_error",
+    "translation": "Обновления статуса набора текста пользователем не могут быть чаще, чем раз в 1000 миллисекунд."
+  },
+  {
     "id": "model.config.is_valid.webrtc_gateway_admin_secret.app_error",
     "translation": "Admin Secret для шлюза WebRTC должен быть установлен."
   },
@@ -3757,7 +3977,7 @@
   },
   {
     "id": "model.outgoing_hook.is_valid.callback.app_error",
-    "translation": "Некорректный адрес обратного вызова"
+    "translation": "Неверный адрес колбэка"
   },
   {
     "id": "model.outgoing_hook.is_valid.channel_id.app_error",
@@ -3853,7 +4073,7 @@
   },
   {
     "id": "model.post.is_valid.root_parent.app_error",
-    "translation": "Вы не имеете требуемого допуска"
+    "translation": "Должен быть установлен неверный корневой идентификатор, если установлен родительский"
   },
   {
     "id": "model.post.is_valid.type.app_error",
@@ -4001,7 +4221,7 @@
   },
   {
     "id": "model.user.is_valid.position.app_error",
-    "translation": "Invalid position: must not be longer than 35 characters."
+    "translation": "Неверная позиция: должно быть не более 35 символов."
   },
   {
     "id": "model.user.is_valid.pwd.app_error",
@@ -4161,11 +4381,11 @@
   },
   {
     "id": "store.sql.open_conn.critical",
-    "translation": "Не удалось открыть sql-соединение с err:%v"
+    "translation": "Не удалось открыть SQL соединение с err:%v"
   },
   {
     "id": "store.sql.open_conn.panic",
-    "translation": "Не удалось открыть sql-соединение %v"
+    "translation": "Не удалось открыть SQL соединение %v"
   },
   {
     "id": "store.sql.ping.critical",
@@ -4296,6 +4516,14 @@
     "translation": "Каналы не найдены"
   },
   {
+    "id": "store.sql_channel.get_deleted_by_name.existing.app_error",
+    "translation": "Не удалось найти существующий удалённый канал"
+  },
+  {
+    "id": "store.sql_channel.get_deleted_by_name.missing.app_error",
+    "translation": "Не существует удалённого канала с таким именем."
+  },
+  {
     "id": "store.sql_channel.get_extra_members.app_error",
     "translation": "Не удалось получить дополнительные сведения об участниках канала"
   },
@@ -4309,7 +4537,7 @@
   },
   {
     "id": "store.sql_channel.get_member.missing.app_error",
-    "translation": "Ни одного участника канала не было найдено для данных идентификаторов пользователя и канала"
+    "translation": "Не найдено ни одного участника канала по данному идентификатору пользователя и канала"
   },
   {
     "id": "store.sql_channel.get_member_count.app_error",
@@ -4325,7 +4553,7 @@
   },
   {
     "id": "store.sql_channel.get_members_by_ids.app_error",
-    "translation": "Не удалось получить участников канала"
+    "translation": "Не удалось получить список участников канала"
   },
   {
     "id": "store.sql_channel.get_more_channels.get.app_error",
@@ -4334,6 +4562,10 @@
   {
     "id": "store.sql_channel.increment_mention_count.app_error",
     "translation": "Не удалось увеличить счетчик упоминаний"
+  },
+  {
+    "id": "store.sql_channel.permanent_delete.app_error",
+    "translation": "Не удалось удалить канал"
   },
   {
     "id": "store.sql_channel.permanent_delete_by_team.app_error",
@@ -4369,7 +4601,7 @@
   },
   {
     "id": "store.sql_channel.save_channel.exists.app_error",
-    "translation": "Канал с таким URL уже существует"
+    "translation": "Канал с таким именем уже существует в этой команде"
   },
   {
     "id": "store.sql_channel.save_channel.limit.app_error",
@@ -4700,6 +4932,10 @@
     "translation": "Неудачная попытка удалить комментарии пользователя"
   },
   {
+    "id": "store.sql_post.permanent_delete_by_channel.app_error",
+    "translation": "Не удалось удалить сообщения на канале"
+  },
+  {
     "id": "store.sql_post.permanent_delete_by_user.app_error",
     "translation": "Не удалось выбрать для удаления посты пользователя"
   },
@@ -4785,43 +5021,43 @@
   },
   {
     "id": "store.sql_reaction.delete.begin.app_error",
-    "translation": "Unable to open transaction while deleting reaction"
+    "translation": "Не удалось открыть транзакцию при удалении реакции"
   },
   {
     "id": "store.sql_reaction.delete.commit.app_error",
-    "translation": "Unable to commit transaction while deleting reaction"
+    "translation": "Не удалось совершить транзакцию при удалении реакции"
   },
   {
     "id": "store.sql_reaction.delete.save.app_error",
-    "translation": "Unable to delete reaction"
+    "translation": "Не удалось удалить реакцию"
   },
   {
     "id": "store.sql_reaction.delete_all_with_emoj_name.delete_reactions.app_error",
-    "translation": "Unable to delete reactions with the given emoji name"
+    "translation": "Не удалось удалить реакцию с данным именем эмодзи"
   },
   {
     "id": "store.sql_reaction.delete_all_with_emoj_name.get_reactions.app_error",
-    "translation": "Unable to get reactions with the given emoji name"
+    "translation": "Не удалось получить реакцию с данным именем эмодзи"
   },
   {
     "id": "store.sql_reaction.delete_all_with_emoji_name.update_post.warn",
-    "translation": "Unable to update Post.HasReactions while removing reactions post_id=%v, error=%v"
+    "translation": "Не удалось обновить Post.HasReactions во время удаления реакции post_id=%v, error=%v"
   },
   {
     "id": "store.sql_reaction.get_for_post.app_error",
-    "translation": "Unable to get reactions for post"
+    "translation": "Не удалось получить реакции для данного сообщения"
   },
   {
     "id": "store.sql_reaction.save.begin.app_error",
-    "translation": "Unable to open transaction while saving reaction"
+    "translation": "Не удалось открыть транзакцию при сохранении реакции"
   },
   {
     "id": "store.sql_reaction.save.commit.app_error",
-    "translation": "Unable to commit transaction while saving reaction"
+    "translation": "Не удалось совершить транзакцию при сохранении реакции"
   },
   {
     "id": "store.sql_reaction.save.save.app_error",
-    "translation": "Unable to save reaction"
+    "translation": "Не удалось сохранить реакцию"
   },
   {
     "id": "store.sql_session.analytics_session_count.app_error",
@@ -4973,7 +5209,7 @@
   },
   {
     "id": "store.sql_team.get_member.missing.app_error",
-    "translation": "Ни одного участника канала не было найдено для данных идентификаторов пользователя и команды"
+    "translation": "Не найдено ни одного участника команды по данному идентификатору пользователя и канала"
   },
   {
     "id": "store.sql_team.get_member_count.app_error",
@@ -4993,7 +5229,7 @@
   },
   {
     "id": "store.sql_team.get_unread.app_error",
-    "translation": "We couldn't get the teams unread messages"
+    "translation": "Не удалось получить список непрочтённых сообщений для команды"
   },
   {
     "id": "store.sql_team.permanent_delete.app_error",
@@ -5009,7 +5245,7 @@
   },
   {
     "id": "store.sql_team.save.domain_exists.app_error",
-    "translation": "Команда с таким доменом уже существует"
+    "translation": "Команда с таким именем уже существует"
   },
   {
     "id": "store.sql_team.save.existing.app_error",
@@ -5105,7 +5341,7 @@
   },
   {
     "id": "store.sql_user.missing_account.const",
-    "translation": "Не удалось найти действительную учетную запись с соответствующим адресом электронной почты для данной команды. Эта команда может требовать приглашения от владельца команды для присоединения."
+    "translation": "Не удалось найти пользователя"
   },
   {
     "id": "store.sql_user.permanent_delete.app_error",
@@ -5405,7 +5641,7 @@
   },
   {
     "id": "web.check_browser_compatibility.app_error",
-    "translation": "Ваш текущий браузер не поддерживается, пожалуйста, используйте один из следующих браузеров: Google Chrome 21 или новее, Internet Explorer 11 или новее, FireFox 14 или новее, Safari 9 или более новый"
+    "translation": "Ваш текущий браузер не поддерживается, пожалуйста, используйте один из следующих браузеров: Google Chrome 21 или новее, Internet Explorer 11 или новее, Firefox 14 или новее, Safari 9 или более новый"
   },
   {
     "id": "web.claim_account.team.error",
@@ -5449,7 +5685,7 @@
   },
   {
     "id": "web.incoming_webhook.attachment.app_error",
-    "translation": "Maximum attachments length is {{.Max}} characters, received size is {{.Actual}}"
+    "translation": "Максимальный размер вложения {{.Max}} символов, полученный размер {{.Actual}}"
   },
   {
     "id": "web.incoming_webhook.channel.app_error",
@@ -5477,7 +5713,7 @@
   },
   {
     "id": "web.incoming_webhook.text.length.app_error",
-    "translation": "Maximum text length is {{.Max}} characters, received size is {{.Actual}}"
+    "translation": "Максимальная длина текста {{.Max}} символов, получено {{.Actual}}"
   },
   {
     "id": "web.incoming_webhook.user.app_error",

@@ -47,13 +47,18 @@ export function emitChannelClickEvent(channel) {
     function switchToChannel(chan) {
         const channelMember = ChannelStore.getMyMember(chan.id);
         const getMyChannelMembersPromise = AsyncClient.getChannelMember(chan.id, UserStore.getCurrentId());
+        const oldChannelId = ChannelStore.getCurrentId();
 
         getMyChannelMembersPromise.then(() => {
             AsyncClient.getChannelStats(chan.id, true);
-            AsyncClient.viewChannel(chan.id, ChannelStore.getCurrentId());
+            AsyncClient.viewChannel(chan.id, oldChannelId);
             loadPosts(chan.id);
             trackPage();
         });
+
+        // Mark previous and next channel as read
+        ChannelStore.resetCounts(oldChannelId);
+        ChannelStore.resetCounts(chan.id);
 
         BrowserStore.setGlobalItem(chan.team_id, chan.id);
 
@@ -64,7 +69,7 @@ export function emitChannelClickEvent(channel) {
             team_id: chan.team_id,
             total_msg_count: chan.total_msg_count,
             channelMember,
-            prev: ChannelStore.getCurrentId()
+            prev: oldChannelId
         });
     }
 
@@ -252,7 +257,7 @@ export function emitLoadMorePostsFocusedTopEvent() {
 }
 
 export function loadMorePostsTop(id, isFocusPost) {
-    const earliestPostId = PostStore.getEarliestPost(id).id;
+    const earliestPostId = PostStore.getEarliestPostFromPage(id).id;
     if (PostStore.requestVisibilityIncrease(id, Constants.POST_CHUNK_SIZE)) {
         loadPostsBefore(earliestPostId, 0, Constants.POST_CHUNK_SIZE, isFocusPost);
     }
@@ -393,7 +398,7 @@ export function sendEphemeralPost(message, channelId) {
         user_id: '0',
         channel_id: channelId || ChannelStore.getCurrentId(),
         message,
-        type: Constants.POST_TYPE_EPHEMERAL,
+        type: Constants.PostTypes.EPHEMERAL,
         create_at: timestamp,
         update_at: timestamp,
         props: {}
@@ -450,7 +455,9 @@ export function viewLoggedIn() {
 let lastTimeTypingSent = 0;
 export function emitLocalUserTypingEvent(channelId, parentId) {
     const t = Date.now();
-    if ((t - lastTimeTypingSent) > Constants.UPDATE_TYPING_MS) {
+    const membersInChannel = ChannelStore.getStats(channelId).member_count;
+
+    if (((t - lastTimeTypingSent) > global.window.mm_config.TimeBetweenUserTypingUpdatesMilliseconds) && membersInChannel < global.window.mm_config.MaxNotificationsPerChannel && global.window.mm_config.EnableUserTypingMessages === 'true') {
         WebSocketClient.userTyping(channelId, parentId);
         lastTimeTypingSent = t;
     }
@@ -487,10 +494,9 @@ export function clientLogout(redirectTo = '/') {
     UserStore.clear();
     TeamStore.clear();
     ChannelStore.clear();
-    newLocalizationSelected(global.window.mm_config.DefaultClientLocale);
     stopPeriodicStatusUpdates();
     WebsocketActions.close();
-    browserHistory.push(redirectTo);
+    window.location.href = redirectTo;
 }
 
 export function emitSearchMentionsEvent(user) {
@@ -565,7 +571,7 @@ export function redirectUserToDefaultTeam() {
         }
 
         if (myTeams.length > 0) {
-            myTeams = myTeams.sort((a, b) => a.display_name.localeCompare(b.display_name));
+            myTeams = myTeams.sort(Utils.sortTeamsByDisplayName);
             teamId = myTeams[0].id;
         }
     }
@@ -591,5 +597,29 @@ export function redirectUserToDefaultTeam() {
         }
     } else {
         browserHistory.push('/select_team');
+    }
+}
+
+requestOpenGraphMetadata.openGraphMetadataOnGoingRequests = {};  // Format: {<url>: true}
+export function requestOpenGraphMetadata(url) {
+    const onself = requestOpenGraphMetadata;
+
+    if (!onself.openGraphMetadataOnGoingRequests[url]) {
+        onself.openGraphMetadataOnGoingRequests[url] = true;
+
+        Client.getOpenGraphMetadata(url,
+            (data) => {
+                AppDispatcher.handleServerAction({
+                    type: ActionTypes.RECIVED_OPEN_GRAPH_METADATA,
+                    url,
+                    data
+                });
+                delete onself.openGraphMetadataOnGoingRequests[url];
+            },
+            (err) => {
+                AsyncClient.dispatchError(err, 'getOpenGraphMetadata');
+                delete onself.openGraphMetadataOnGoingRequests[url];
+            }
+        );
     }
 }

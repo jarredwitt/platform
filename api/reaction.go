@@ -6,6 +6,7 @@ package api
 import (
 	l4g "github.com/alecthomas/log4go"
 	"github.com/gorilla/mux"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
 	"net/http"
@@ -40,7 +41,8 @@ func saveReaction(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !HasPermissionToChannelContext(c, channelId, model.PERMISSION_READ_CHANNEL) {
+	if !app.SessionHasPermissionToChannel(c.Session, channelId, model.PERMISSION_READ_CHANNEL) {
+		c.SetPermissionError(model.PERMISSION_READ_CHANNEL)
 		return
 	}
 
@@ -50,7 +52,7 @@ func saveReaction(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pchan := Srv.Store.Post().Get(reaction.PostId)
+	pchan := app.Srv.Store.Post().Get(reaction.PostId)
 
 	var postHadReactions bool
 	if result := <-pchan; result.Err != nil {
@@ -65,7 +67,7 @@ func saveReaction(c *Context, w http.ResponseWriter, r *http.Request) {
 		postHadReactions = post.HasReactions
 	}
 
-	if result := <-Srv.Store.Reaction().Save(reaction); result.Err != nil {
+	if result := <-app.Srv.Store.Reaction().Save(reaction); result.Err != nil {
 		c.Err = result.Err
 		return
 	} else {
@@ -98,7 +100,8 @@ func deleteReaction(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !HasPermissionToChannelContext(c, channelId, model.PERMISSION_READ_CHANNEL) {
+	if !app.SessionHasPermissionToChannel(c.Session, channelId, model.PERMISSION_READ_CHANNEL) {
+		c.SetPermissionError(model.PERMISSION_READ_CHANNEL)
 		return
 	}
 
@@ -108,7 +111,7 @@ func deleteReaction(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pchan := Srv.Store.Post().Get(reaction.PostId)
+	pchan := app.Srv.Store.Post().Get(reaction.PostId)
 
 	var postHadReactions bool
 	if result := <-pchan; result.Err != nil {
@@ -123,7 +126,7 @@ func deleteReaction(c *Context, w http.ResponseWriter, r *http.Request) {
 		postHadReactions = post.HasReactions
 	}
 
-	if result := <-Srv.Store.Reaction().Delete(reaction); result.Err != nil {
+	if result := <-app.Srv.Store.Reaction().Delete(reaction); result.Err != nil {
 		c.Err = result.Err
 		return
 	} else {
@@ -139,13 +142,13 @@ func sendReactionEvent(event string, channelId string, reaction *model.Reaction,
 		message := model.NewWebSocketEvent(event, "", channelId, "", nil)
 		message.Add("reaction", reaction.ToJson())
 
-		Publish(message)
+		app.Publish(message)
 	}()
 
 	// send out that a post was updated if post.HasReactions has changed
 	go func() {
 		var post *model.Post
-		if result := <-Srv.Store.Post().Get(reaction.PostId); result.Err != nil {
+		if result := <-app.Srv.Store.Post().Get(reaction.PostId); result.Err != nil {
 			l4g.Warn(utils.T("api.reaction.send_reaction_event.post.app_error"))
 			return
 		} else {
@@ -156,7 +159,7 @@ func sendReactionEvent(event string, channelId string, reaction *model.Reaction,
 			message := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_POST_EDITED, "", channelId, "", nil)
 			message.Add("post", post.ToJson())
 
-			Publish(message)
+			app.Publish(message)
 		}
 	}()
 }
@@ -176,9 +179,10 @@ func listReactions(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pchan := Srv.Store.Post().Get(postId)
+	pchan := app.Srv.Store.Post().Get(postId)
 
-	if !HasPermissionToChannelContext(c, channelId, model.PERMISSION_READ_CHANNEL) {
+	if !app.SessionHasPermissionToChannel(c.Session, channelId, model.PERMISSION_READ_CHANNEL) {
+		c.SetPermissionError(model.PERMISSION_READ_CHANNEL)
 		return
 	}
 
@@ -192,7 +196,7 @@ func listReactions(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if result := <-Srv.Store.Reaction().GetForPost(postId); result.Err != nil {
+	if result := <-app.Srv.Store.Reaction().GetForPost(postId); result.Err != nil {
 		c.Err = result.Err
 		return
 	} else {

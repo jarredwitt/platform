@@ -4,6 +4,7 @@
 import $ from 'jquery';
 import ReactDOM from 'react-dom';
 
+import {getShortenedURL} from 'utils/url.jsx';
 import * as UserAgent from 'utils/user_agent.jsx';
 import * as Utils from 'utils/utils.jsx';
 import * as ChannelUtils from 'utils/channel_utils.jsx';
@@ -189,7 +190,7 @@ export default class NewChannelModal extends React.Component {
             break;
         }
 
-        const prettyTeamURL = Utils.getShortenedTeamURL();
+        const prettyTeamURL = getShortenedURL();
 
         return (
             <span>
@@ -272,7 +273,7 @@ export default class NewChannelModal extends React.Component {
                                         className='form-control no-resize'
                                         ref='channel_purpose'
                                         rows='4'
-                                        placeholder={Utils.localizeMessage('channel_modal.purpose', 'Purpose')}
+                                        placeholder={Utils.localizeMessage('channel_modal.purposeEx', 'E.g.: "A channel to file bugs and improvements"')}
                                         maxLength='250'
                                         value={this.props.channelData.purpose}
                                         onChange={this.handleChange}
@@ -309,8 +310,8 @@ export default class NewChannelModal extends React.Component {
                                         className='form-control no-resize'
                                         ref='channel_header'
                                         rows='4'
-                                        placeholder={Utils.localizeMessage('channel_modal.header', 'Header')}
-                                        maxLength='128'
+                                        placeholder={Utils.localizeMessage('channel_modal.headerEx', 'E.g.: "[Link Title](http://example.com)"')}
+                                        maxLength='1024'
                                         value={this.props.channelData.header}
                                         onChange={this.handleChange}
                                         tabIndex='2'

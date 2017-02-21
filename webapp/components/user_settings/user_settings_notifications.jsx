@@ -8,10 +8,9 @@ import DesktopNotificationSettings from './desktop_notification_settings.jsx';
 
 import UserStore from 'stores/user_store.jsx';
 
-import Client from 'client/web_client.jsx';
-import * as AsyncClient from 'utils/async_client.jsx';
 import * as Utils from 'utils/utils.jsx';
 import Constants from 'utils/constants.jsx';
+import {updateUserNotifyProps} from 'actions/user_actions.jsx';
 
 import EmailNotificationSetting from './email_notification_setting.jsx';
 import {FormattedMessage} from 'react-intl';
@@ -143,10 +142,10 @@ export default class NotificationsTab extends React.Component {
         data.first_name = this.state.firstNameKey.toString();
         data.channel = this.state.channelKey.toString();
 
-        Client.updateUserNotifyProps(data,
+        updateUserNotifyProps(
+            data,
             () => {
                 this.props.updateSection('');
-                AsyncClient.getMe();
                 $('.settings-modal .modal-body').scrollTop(0).perfectScrollbar('update');
             },
             (err) => {
@@ -609,6 +608,18 @@ export default class NotificationsTab extends React.Component {
                 </div>
             );
 
+            const extraInfo = (
+                <span>
+                    <FormattedMessage
+                        id='user.settings.notifications.mentionsInfo'
+                        defaultMessage='Mentions trigger when someone sends a message that includes your username (@{username}) or any of the options selected above.'
+                        values={{
+                            username: user.username
+                        }}
+                    />
+                </span>
+            );
+
             keysSection = (
                 <SettingItemMax
                     title={Utils.localizeMessage('user.settings.notifications.wordsTrigger', 'Words that trigger mentions')}
@@ -616,10 +627,11 @@ export default class NotificationsTab extends React.Component {
                     submit={this.handleSubmit}
                     server_error={serverError}
                     updateSection={this.handleCancel}
+                    extraInfo={extraInfo}
                 />
             );
         } else {
-            let keys = [];
+            let keys = ['@' + user.username];
             if (this.state.firstNameKey) {
                 keys.push(user.first_name);
             }

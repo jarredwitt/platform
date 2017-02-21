@@ -10,6 +10,7 @@ import (
 	"os/exec"
 
 	"github.com/mattermost/platform/api"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/utils"
 	"github.com/spf13/cobra"
 )
@@ -38,9 +39,9 @@ func webClientTestsCmdF(cmd *cobra.Command, args []string) error {
 	api.InitRouter()
 	api.InitApi()
 	setupClientTests()
-	api.StartServer()
+	app.StartServer()
 	runWebClientTests()
-	api.StopServer()
+	app.StopServer()
 
 	return nil
 }
@@ -59,18 +60,34 @@ func executeTestCommand(cmd *exec.Cmd) {
 	cmdOutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		CommandPrintErrorln("Failed to run tests")
+		os.Exit(1)
+		return
+	}
+
+	cmdErrOutPipe, err := cmd.StderrPipe()
+	if err != nil {
+		CommandPrintErrorln("Failed to run tests")
+		os.Exit(1)
 		return
 	}
 
 	cmdOutReader := bufio.NewScanner(cmdOutPipe)
+	cmdErrOutReader := bufio.NewScanner(cmdErrOutPipe)
 	go func() {
 		for cmdOutReader.Scan() {
 			fmt.Println(cmdOutReader.Text())
 		}
 	}()
 
+	go func() {
+		for cmdErrOutReader.Scan() {
+			fmt.Println(cmdErrOutReader.Text())
+		}
+	}()
+
 	if err := cmd.Run(); err != nil {
 		CommandPrintErrorln("Client Tests failed")
+		os.Exit(1)
 		return
 	}
 }

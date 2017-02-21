@@ -60,7 +60,10 @@ export function removeUserFromTeam(teamId, userId, success, error) {
         userId,
         () => {
             TeamStore.removeMemberInTeam(teamId, userId);
+            UserStore.removeProfileFromTeam(teamId, userId);
+            UserStore.emitInTeamChange();
             AsyncClient.getUser(userId);
+            AsyncClient.getTeamStats(teamId);
 
             if (success) {
                 success();
@@ -91,4 +94,59 @@ export function updateTeamMemberRoles(teamId, userId, newRoles, success, error) 
             }
         }
     );
+}
+
+export function addUserToTeamFromInvite(data, hash, inviteId, success, error) {
+    Client.addUserToTeamFromInvite(
+        data,
+        hash,
+        inviteId,
+        (team) => {
+            if (success) {
+                success(team);
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function getInviteInfo(inviteId, success, error) {
+    Client.getInviteInfo(
+        inviteId,
+        (inviteData) => {
+            if (success) {
+                success(inviteData);
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function inviteMembers(data, success, error) {
+    Client.inviteMembers(
+        data,
+        () => {
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            if (err) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function switchTeams(url) {
+    AsyncClient.viewChannel();
+    browserHistory.push(url);
 }

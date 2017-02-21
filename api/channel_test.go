@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/store"
 	"github.com/mattermost/platform/utils"
@@ -19,7 +20,7 @@ func TestCreateChannel(t *testing.T) {
 	Client := th.BasicClient
 	SystemAdminClient := th.SystemAdminClient
 	team := th.BasicTeam
-	Client.Must(Client.Logout())
+	th.LoginBasic2()
 	team2 := th.CreateTeam(th.BasicClient)
 	th.LoginBasic()
 	th.BasicClient.SetTeamId(team.Id)
@@ -54,7 +55,7 @@ func TestCreateChannel(t *testing.T) {
 
 	rchannel.Data.(*model.Channel).Id = ""
 	if _, err := Client.CreateChannel(rchannel.Data.(*model.Channel)); err != nil {
-		if err.Message != "A channel with that URL already exists" {
+		if err.Id != "store.sql_channel.save_channel.exists.app_error" {
 			t.Fatal(err)
 		}
 	}
@@ -125,6 +126,7 @@ func TestCreateChannel(t *testing.T) {
 	*utils.Cfg.TeamSettings.RestrictPrivateChannelCreation = model.PERMISSIONS_TEAM_ADMIN
 	utils.SetDefaultRolesBasedOnConfig()
 
+	th.LoginBasic2()
 	channel2.Name = "a" + model.NewId() + "a"
 	channel3.Name = "a" + model.NewId() + "a"
 	if _, err := Client.CreateChannel(channel2); err == nil {
@@ -343,6 +345,17 @@ func TestUpdateChannel(t *testing.T) {
 	if _, err := Client.UpdateChannel(channel3); err == nil {
 		t.Fatal("should have errored not team admin")
 	}
+
+	UpdateUserToTeamAdmin(th.BasicUser, team)
+	app.InvalidateAllCaches()
+	if _, err := Client.UpdateChannel(channel2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Client.UpdateChannel(channel3); err != nil {
+		t.Fatal(err)
+	}
+	UpdateUserToNonTeamAdmin(th.BasicUser, team)
+	app.InvalidateAllCaches()
 
 	MakeUserChannelAdmin(th.BasicUser, channel2)
 	MakeUserChannelAdmin(th.BasicUser, channel3)
@@ -627,6 +640,17 @@ func TestUpdateChannelPurpose(t *testing.T) {
 		t.Fatal(err)
 	} else {
 		upChannel1 = result.Data.(*model.Channel)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	r1 := Client.Must(Client.GetPosts(channel1.Id, 0, 1, "")).Data.(*model.PostList)
+	if len(r1.Order) != 1 {
+		t.Fatal("Purpose update system message was not found")
+	} else if val, ok := r1.Posts[r1.Order[0]].Props["old_purpose"]; !ok || val != "" {
+		t.Fatal("Props should contain old_header with old purpose value")
+	} else if val, ok := r1.Posts[r1.Order[0]].Props["new_purpose"]; !ok || val != "new purpose" {
+		t.Fatal("Props should contain new_header with new purpose value")
 	}
 
 	if upChannel1.Purpose != data["channel_purpose"] {
@@ -1067,7 +1091,7 @@ func TestJoinChannelByNameDisabledUser(t *testing.T) {
 
 	Client.Must(th.BasicClient.RemoveUserFromTeam(th.BasicTeam.Id, th.BasicUser.Id))
 
-	if _, err := AddUserToChannel(th.BasicUser, channel1); err == nil {
+	if _, err := app.AddUserToChannel(th.BasicUser, channel1); err == nil {
 		t.Fatal("shoudn't be able to join channel")
 	} else {
 		if err.Id != "api.channel.add_user.to.channel.failed.deleted.app_error" {
@@ -1271,6 +1295,28 @@ func TestDeleteChannel(t *testing.T) {
 	if _, err := Client.DeleteChannel(channel3.Id); err != nil {
 		t.Fatal(err)
 	}
+
+	th.LoginSystemAdmin()
+
+	channel2 = th.CreateChannel(Client, team)
+	channel3 = th.CreatePrivateChannel(Client, team)
+
+	Client.Must(Client.AddChannelMember(channel2.Id, th.BasicUser.Id))
+	Client.Must(Client.AddChannelMember(channel3.Id, th.BasicUser.Id))
+	UpdateUserToTeamAdmin(th.BasicUser, team)
+
+	Client.Login(th.BasicUser.Email, th.BasicUser.Password)
+	app.InvalidateAllCaches()
+
+	if _, err := Client.DeleteChannel(channel2.Id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Client.DeleteChannel(channel3.Id); err != nil {
+		t.Fatal(err)
+	}
+
+	UpdateUserToNonTeamAdmin(th.BasicUser, team)
+	app.InvalidateAllCaches()
 
 	*utils.Cfg.TeamSettings.RestrictPublicChannelDeletion = model.PERMISSIONS_TEAM_ADMIN
 	*utils.Cfg.TeamSettings.RestrictPrivateChannelDeletion = model.PERMISSIONS_TEAM_ADMIN
@@ -1755,7 +1801,9 @@ func TestAutocompleteChannels(t *testing.T) {
 	channel2 = Client.Must(Client.CreateChannel(channel2)).Data.(*model.Channel)
 
 	channel3 := &model.Channel{DisplayName: "BadChannelC", Name: "c" + model.NewId() + "a", Type: model.CHANNEL_OPEN, TeamId: model.NewId()}
-	channel3 = th.SystemAdminClient.Must(th.SystemAdminClient.CreateChannel(channel3)).Data.(*model.Channel)
+	if _, err := th.SystemAdminClient.CreateChannel(channel3); err == nil {
+		t.Fatal("channel must have valid team id")
+	}
 
 	channel4 := &model.Channel{DisplayName: "BadChannelD", Name: "d" + model.NewId() + "a", Type: model.CHANNEL_PRIVATE, TeamId: team.Id}
 	channel4 = Client.Must(Client.CreateChannel(channel4)).Data.(*model.Channel)
@@ -1832,7 +1880,7 @@ func TestGetChannelByName(t *testing.T) {
 
 	user2 := &model.User{Email: "success+" + model.NewId() + "@simulator.amazonses.com", Nickname: "Jabba the Hutt", Password: "passwd1"}
 	user2 = Client.Must(Client.CreateUser(user2, "")).Data.(*model.User)
-	store.Must(Srv.Store.User().VerifyEmail(user2.Id))
+	store.Must(app.Srv.Store.User().VerifyEmail(user2.Id))
 
 	Client.SetTeamId(th.BasicTeam.Id)
 
@@ -1887,7 +1935,7 @@ func TestViewChannel(t *testing.T) {
 func TestGetChannelMembersByIds(t *testing.T) {
 	th := Setup().InitBasic()
 
-	if _, err := AddUserToChannel(th.BasicUser2, th.BasicChannel); err != nil {
+	if _, err := app.AddUserToChannel(th.BasicUser2, th.BasicChannel); err != nil {
 		t.Fatal("Could not add second user to channel")
 	}
 
@@ -1918,5 +1966,78 @@ func TestGetChannelMembersByIds(t *testing.T) {
 
 	if _, err := th.BasicClient.GetChannelMembersByIds(th.BasicChannel.Id, []string{}); err == nil {
 		t.Fatal("should have errored - empty user ids")
+	}
+}
+
+func TestUpdateChannelRoles(t *testing.T) {
+	th := Setup().InitSystemAdmin().InitBasic()
+	th.SystemAdminClient.SetTeamId(th.BasicTeam.Id)
+	LinkUserToTeam(th.SystemAdminUser, th.BasicTeam)
+
+	const CHANNEL_ADMIN = "channel_admin channel_user"
+	const CHANNEL_MEMBER = "channel_user"
+
+	// User 1 creates a channel, making them channel admin by default.
+	createChannel := model.Channel{
+		DisplayName: "Test API Name",
+		Name:        "a" + model.NewId() + "a",
+		Type:        model.CHANNEL_OPEN,
+		TeamId:      th.BasicTeam.Id,
+	}
+
+	rchannel, err := th.BasicClient.CreateChannel(&createChannel)
+	if err != nil {
+		t.Fatal("Failed to create channel:", err)
+	}
+	channel := rchannel.Data.(*model.Channel)
+
+	// User 1 adds User 2 to the channel, making them a channel member by default.
+	if _, err := th.BasicClient.AddChannelMember(channel.Id, th.BasicUser2.Id); err != nil {
+		t.Fatal("Failed to add user 2 to the channel:", err)
+	}
+
+	// System Admin can demote User 1 (channel admin).
+	if data, meta := th.SystemAdminClient.UpdateChannelRoles(channel.Id, th.BasicUser.Id, CHANNEL_MEMBER); data == nil {
+		t.Fatal("System Admin failed to demote channel admin to channel member:", meta)
+	}
+
+	// User 1 (channel_member) cannot promote user 2 (channel_member).
+	if data, meta := th.BasicClient.UpdateChannelRoles(channel.Id, th.BasicUser2.Id, CHANNEL_ADMIN); data != nil {
+		t.Fatal("Channel member should not be able to promote another channel member to channel admin:", meta)
+	}
+
+	// System Admin can promote user 1 (channel member).
+	if data, meta := th.SystemAdminClient.UpdateChannelRoles(channel.Id, th.BasicUser.Id, CHANNEL_ADMIN); data == nil {
+		t.Fatal("System Admin failed to promote channel member to channel admin:", meta)
+	}
+
+	// User 1 (channel_admin) can promote User 2 (channel member).
+	if data, meta := th.BasicClient.UpdateChannelRoles(channel.Id, th.BasicUser2.Id, CHANNEL_ADMIN); data == nil {
+		t.Fatal("Channel admin failed to promote channel member to channel admin:", meta)
+	}
+
+	// User 1 (channel admin) can demote User 2 (channel admin).
+	if data, meta := th.BasicClient.UpdateChannelRoles(channel.Id, th.BasicUser2.Id, CHANNEL_MEMBER); data == nil {
+		t.Fatal("Channel admin failed to demote channel admin to channel member:", meta)
+	}
+
+	// User 1 (channel admin) can demote itself.
+	if data, meta := th.BasicClient.UpdateChannelRoles(channel.Id, th.BasicUser.Id, CHANNEL_MEMBER); data == nil {
+		t.Fatal("Channel admin failed to demote itself to channel member:", meta)
+	}
+
+	// Promote User2 again for next test.
+	if data, meta := th.SystemAdminClient.UpdateChannelRoles(channel.Id, th.BasicUser2.Id, CHANNEL_ADMIN); data == nil {
+		t.Fatal("System Admin failed to promote channel member to channel admin:", meta)
+	}
+
+	// User 1 (channel member) cannot demote user 2 (channel admin).
+	if data, meta := th.BasicClient.UpdateChannelRoles(channel.Id, th.BasicUser2.Id, CHANNEL_MEMBER); data != nil {
+		t.Fatal("Channel member should not be able to demote another channel admin to channel member:", meta)
+	}
+
+	// User 1 (channel member) cannot promote itself.
+	if data, meta := th.BasicClient.UpdateChannelRoles(channel.Id, th.BasicUser.Id, CHANNEL_ADMIN); data != nil {
+		t.Fatal("Channel member should not be able to promote itself to channel admin:", meta)
 	}
 }

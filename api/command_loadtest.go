@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	l4g "github.com/alecthomas/log4go"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
 )
@@ -168,10 +169,10 @@ func (me *LoadTestProvider) SetupCommand(c *Context, channelId string, message s
 		client.Login(BTEST_USER_EMAIL, BTEST_USER_PASSWORD)
 		environment, err := CreateTestEnvironmentWithTeams(
 			client,
-			utils.Range{numTeams, numTeams},
-			utils.Range{numChannels, numChannels},
-			utils.Range{numUsers, numUsers},
-			utils.Range{numPosts, numPosts},
+			utils.Range{Begin: numTeams, End: numTeams},
+			utils.Range{Begin: numChannels, End: numChannels},
+			utils.Range{Begin: numUsers, End: numUsers},
+			utils.Range{Begin: numPosts, End: numPosts},
 			doFuzz)
 		if err != true {
 			return &model.CommandResponse{Text: "Failed to create testing environment", ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
@@ -185,7 +186,7 @@ func (me *LoadTestProvider) SetupCommand(c *Context, channelId string, message s
 	} else {
 
 		var team *model.Team
-		if tr := <-Srv.Store.Team().Get(c.TeamId); tr.Err != nil {
+		if tr := <-app.Srv.Store.Team().Get(c.TeamId); tr.Err != nil {
 			return &model.CommandResponse{Text: "Failed to create testing environment", ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
 		} else {
 			team = tr.Data.(*model.Team)
@@ -196,9 +197,9 @@ func (me *LoadTestProvider) SetupCommand(c *Context, channelId string, message s
 		CreateTestEnvironmentInTeam(
 			client,
 			team,
-			utils.Range{numChannels, numChannels},
-			utils.Range{numUsers, numUsers},
-			utils.Range{numPosts, numPosts},
+			utils.Range{Begin: numChannels, End: numChannels},
+			utils.Range{Begin: numUsers, End: numUsers},
+			utils.Range{Begin: numPosts, End: numPosts},
 			doFuzz)
 	}
 
@@ -216,11 +217,11 @@ func (me *LoadTestProvider) UsersCommand(c *Context, channelId string, message s
 
 	usersr, err := parseRange(cmd, "")
 	if err == false {
-		usersr = utils.Range{2, 5}
+		usersr = utils.Range{Begin: 2, End: 5}
 	}
 
 	var team *model.Team
-	if tr := <-Srv.Store.Team().Get(c.TeamId); tr.Err != nil {
+	if tr := <-app.Srv.Store.Team().Get(c.TeamId); tr.Err != nil {
 		return &model.CommandResponse{Text: "Failed to create testing environment", ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
 	} else {
 		team = tr.Data.(*model.Team)
@@ -246,11 +247,11 @@ func (me *LoadTestProvider) ChannelsCommand(c *Context, channelId string, messag
 
 	channelsr, err := parseRange(cmd, "")
 	if err == false {
-		channelsr = utils.Range{2, 5}
+		channelsr = utils.Range{Begin: 2, End: 5}
 	}
 
 	var team *model.Team
-	if tr := <-Srv.Store.Team().Get(c.TeamId); tr.Err != nil {
+	if tr := <-app.Srv.Store.Team().Get(c.TeamId); tr.Err != nil {
 		return &model.CommandResponse{Text: "Failed to create testing environment", ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
 	} else {
 		team = tr.Data.(*model.Team)
@@ -277,20 +278,20 @@ func (me *LoadTestProvider) PostsCommand(c *Context, channelId string, message s
 
 	postsr, err := parseRange(cmd, "")
 	if err == false {
-		postsr = utils.Range{20, 30}
+		postsr = utils.Range{Begin: 20, End: 30}
 	}
 
 	tokens := strings.Fields(cmd)
-	rimages := utils.Range{0, 0}
+	rimages := utils.Range{Begin: 0, End: 0}
 	if len(tokens) >= 3 {
 		if numImages, err := strconv.Atoi(tokens[2]); err == nil {
-			rimages = utils.Range{numImages, numImages}
+			rimages = utils.Range{Begin: numImages, End: numImages}
 		}
 	}
 
 	var usernames []string
-	if result := <-Srv.Store.User().GetProfiles(c.TeamId, 0, 1000); result.Err == nil {
-		profileUsers := result.Data.(map[string]*model.User)
+	if result := <-app.Srv.Store.User().GetProfiles(c.TeamId, 0, 1000); result.Err == nil {
+		profileUsers := result.Data.([]*model.User)
 		usernames = make([]string, len(profileUsers))
 		i := 0
 		for _, userprof := range profileUsers {
@@ -358,7 +359,7 @@ func (me *LoadTestProvider) UrlCommand(c *Context, channelId string, message str
 		post.ChannelId = channelId
 		post.UserId = c.Session.UserId
 
-		if _, err := CreatePost(c, post, false); err != nil {
+		if _, err := app.CreatePost(post, c.TeamId, false); err != nil {
 			return &model.CommandResponse{Text: "Unable to create post", ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
 		}
 	}
@@ -397,7 +398,7 @@ func (me *LoadTestProvider) JsonCommand(c *Context, channelId string, message st
 		post.Message = message
 	}
 
-	if _, err := CreatePost(c, post, false); err != nil {
+	if _, err := app.CreatePost(post, c.TeamId, false); err != nil {
 		return &model.CommandResponse{Text: "Unable to create post", ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
 	}
 	return &model.CommandResponse{Text: "Loaded data", ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
@@ -414,18 +415,18 @@ func parseRange(command string, cmd string) (utils.Range, bool) {
 		begin, err1 = strconv.Atoi(tokens[0])
 		end = begin
 		if err1 != nil {
-			return utils.Range{0, 0}, false
+			return utils.Range{Begin: 0, End: 0}, false
 		}
 	case len(tokens) >= 2:
 		begin, err1 = strconv.Atoi(tokens[0])
 		end, err2 = strconv.Atoi(tokens[1])
 		if err1 != nil || err2 != nil {
-			return utils.Range{0, 0}, false
+			return utils.Range{Begin: 0, End: 0}, false
 		}
 	default:
-		return utils.Range{0, 0}, false
+		return utils.Range{Begin: 0, End: 0}, false
 	}
-	return utils.Range{begin, end}, true
+	return utils.Range{Begin: begin, End: end}, true
 }
 
 func contains(items []string, token string) bool {

@@ -64,6 +64,10 @@ export default class SuggestionBox extends React.Component {
             // Delay this slightly so that we don't clear the suggestions before we run click handlers on SuggestionList
             GlobalActions.emitClearSuggestions(this.suggestionId);
         }, 100);
+
+        if (this.props.onBlur) {
+            this.props.onBlur();
+        }
     }
 
     handleChange(e) {
@@ -149,6 +153,12 @@ export default class SuggestionBox extends React.Component {
         window.requestAnimationFrame(() => {
             Utils.setCaretPosition(textbox, prefix.length + term.length + 1);
         });
+
+        for (const provider of this.props.providers) {
+            if (provider.handleCompleteWord) {
+                provider.handleCompleteWord(term, matchedPretext);
+            }
+        }
     }
 
     handleKeyDown(e) {
@@ -272,6 +282,7 @@ SuggestionBox.propTypes = {
     renderDividers: React.PropTypes.bool,
 
     // explicitly name any input event handlers we override and need to manually call
+    onBlur: React.PropTypes.func,
     onChange: React.PropTypes.func,
     onKeyDown: React.PropTypes.func,
     onItemSelected: React.PropTypes.func

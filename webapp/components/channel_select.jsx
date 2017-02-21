@@ -6,6 +6,7 @@ import React from 'react';
 import Constants from 'utils/constants.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
 import * as Utils from 'utils/utils.jsx';
+import {sortChannelsByDisplayName} from 'utils/channel_utils.jsx';
 import * as AsyncClient from 'utils/async_client.jsx';
 
 export default class ChannelSelect extends React.Component {
@@ -31,12 +32,12 @@ export default class ChannelSelect extends React.Component {
         super(props);
 
         this.handleChannelChange = this.handleChannelChange.bind(this);
-        this.compareByDisplayName = this.compareByDisplayName.bind(this);
+        this.filterChannels = this.filterChannels.bind(this);
 
         AsyncClient.getMoreChannels(true);
 
         this.state = {
-            channels: ChannelStore.getAll().sort(this.compareByDisplayName)
+            channels: ChannelStore.getAll().filter(this.filterChannels).sort(sortChannelsByDisplayName)
         };
     }
 
@@ -50,12 +51,17 @@ export default class ChannelSelect extends React.Component {
 
     handleChannelChange() {
         this.setState({
-            channels: ChannelStore.getAll().concat(ChannelStore.getMoreAll()).sort(this.compareByDisplayName)
+            channels: ChannelStore.getAll().concat(ChannelStore.getMoreAll()).
+                filter(this.filterChannels).sort(sortChannelsByDisplayName)
         });
     }
 
-    compareByDisplayName(channelA, channelB) {
-        return channelA.display_name.localeCompare(channelB.display_name);
+    filterChannels(channel) {
+        if (channel.display_name) {
+            return true;
+        }
+
+        return false;
     }
 
     render() {

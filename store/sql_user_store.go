@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -18,9 +19,9 @@ import (
 const (
 	MISSING_ACCOUNT_ERROR                      = "store.sql_user.missing_account.const"
 	MISSING_AUTH_ACCOUNT_ERROR                 = "store.sql_user.get_by_auth.missing_account.app_error"
-	PROFILES_IN_CHANNEL_CACHE_SIZE             = 5000
+	PROFILES_IN_CHANNEL_CACHE_SIZE             = model.CHANNEL_CACHE_SIZE
 	PROFILES_IN_CHANNEL_CACHE_SEC              = 900 // 15 mins
-	PROFILE_BY_IDS_CACHE_SIZE                  = 20000
+	PROFILE_BY_IDS_CACHE_SIZE                  = model.SESSION_CACHE_SIZE
 	PROFILE_BY_IDS_CACHE_SEC                   = 900 // 15 mins
 	USER_SEARCH_OPTION_NAMES_ONLY              = "names_only"
 	USER_SEARCH_OPTION_NAMES_ONLY_NO_FULL_NAME = "names_only_no_full_name"
@@ -108,9 +109,9 @@ func (us SqlUserStore) Save(user *model.User) StoreChannel {
 
 		if err := us.GetMaster().Insert(user); err != nil {
 			if IsUniqueConstraintError(err.Error(), []string{"Email", "users_email_key", "idx_users_email_unique"}) {
-				result.Err = model.NewLocAppError("SqlUserStore.Save", "store.sql_user.save.email_exists.app_error", nil, "user_id="+user.Id+", "+err.Error())
+				result.Err = model.NewAppError("SqlUserStore.Save", "store.sql_user.save.email_exists.app_error", nil, "user_id="+user.Id+", "+err.Error(), http.StatusBadRequest)
 			} else if IsUniqueConstraintError(err.Error(), []string{"Username", "users_username_key", "idx_users_username_unique"}) {
-				result.Err = model.NewLocAppError("SqlUserStore.Save", "store.sql_user.save.username_exists.app_error", nil, "user_id="+user.Id+", "+err.Error())
+				result.Err = model.NewAppError("SqlUserStore.Save", "store.sql_user.save.username_exists.app_error", nil, "user_id="+user.Id+", "+err.Error(), http.StatusBadRequest)
 			} else {
 				result.Err = model.NewLocAppError("SqlUserStore.Save", "store.sql_user.save.app_error", nil, "user_id="+user.Id+", "+err.Error())
 			}
@@ -389,6 +390,7 @@ func (us SqlUserStore) Get(id string) StoreChannel {
 			result.Err = model.NewLocAppError("SqlUserStore.Get", "store.sql_user.get.app_error", nil, "user_id="+id+", "+err.Error())
 		} else if obj == nil {
 			result.Err = model.NewLocAppError("SqlUserStore.Get", MISSING_ACCOUNT_ERROR, nil, "user_id="+id)
+			result.Err.StatusCode = http.StatusNotFound
 		} else {
 			result.Data = obj.(*model.User)
 		}
@@ -508,16 +510,13 @@ func (us SqlUserStore) GetAllProfiles(offset int, limit int) StoreChannel {
 			result.Err = model.NewLocAppError("SqlUserStore.GetAllProfiles", "store.sql_user.get_profiles.app_error", nil, err.Error())
 		} else {
 
-			userMap := make(map[string]*model.User)
-
 			for _, u := range users {
 				u.Password = ""
 				u.AuthData = new(string)
 				*u.AuthData = ""
-				userMap[u.Id] = u
 			}
 
-			result.Data = userMap
+			result.Data = users
 		}
 
 		storeChannel <- result
@@ -560,16 +559,13 @@ func (us SqlUserStore) GetProfiles(teamId string, offset int, limit int) StoreCh
 			result.Err = model.NewLocAppError("SqlUserStore.GetProfiles", "store.sql_user.get_profiles.app_error", nil, err.Error())
 		} else {
 
-			userMap := make(map[string]*model.User)
-
 			for _, u := range users {
 				u.Password = ""
 				u.AuthData = new(string)
 				*u.AuthData = ""
-				userMap[u.Id] = u
 			}
 
-			result.Data = userMap
+			result.Data = users
 		}
 
 		storeChannel <- result
@@ -596,7 +592,38 @@ func (us SqlUserStore) InvalidateProfilesInChannelCache(channelId string) {
 	profilesInChannelCache.Remove(channelId)
 }
 
-func (us SqlUserStore) GetProfilesInChannel(channelId string, offset int, limit int, allowFromCache bool) StoreChannel {
+func (us SqlUserStore) GetProfilesInChannel(channelId string, offset int, limit int) StoreChannel {
+
+	storeChannel := make(StoreChannel)
+
+	go func() {
+		result := StoreResult{}
+
+		var users []*model.User
+
+		query := "SELECT Users.* FROM Users, ChannelMembers WHERE ChannelMembers.ChannelId = :ChannelId AND Users.Id = ChannelMembers.UserId AND Users.DeleteAt = 0 ORDER BY Users.Username ASC LIMIT :Limit OFFSET :Offset"
+
+		if _, err := us.GetReplica().Select(&users, query, map[string]interface{}{"ChannelId": channelId, "Offset": offset, "Limit": limit}); err != nil {
+			result.Err = model.NewLocAppError("SqlUserStore.GetProfilesInChannel", "store.sql_user.get_profiles.app_error", nil, err.Error())
+		} else {
+
+			for _, u := range users {
+				u.Password = ""
+				u.AuthData = new(string)
+				*u.AuthData = ""
+			}
+
+			result.Data = users
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
+func (us SqlUserStore) GetAllProfilesInChannel(channelId string, allowFromCache bool) StoreChannel {
 
 	storeChannel := make(StoreChannel)
 
@@ -604,7 +631,7 @@ func (us SqlUserStore) GetProfilesInChannel(channelId string, offset int, limit 
 		result := StoreResult{}
 		metrics := einterfaces.GetMetricsInterface()
 
-		if allowFromCache && offset == -1 && limit == -1 {
+		if allowFromCache {
 			if cacheItem, ok := profilesInChannelCache.Get(channelId); ok {
 				if metrics != nil {
 					metrics.IncrementMemCacheHitCounter("Profiles in Channel")
@@ -628,12 +655,8 @@ func (us SqlUserStore) GetProfilesInChannel(channelId string, offset int, limit 
 
 		query := "SELECT Users.* FROM Users, ChannelMembers WHERE ChannelMembers.ChannelId = :ChannelId AND Users.Id = ChannelMembers.UserId AND Users.DeleteAt = 0"
 
-		if limit >= 0 && offset >= 0 {
-			query += " ORDER BY Users.Username ASC LIMIT :Limit OFFSET :Offset"
-		}
-
-		if _, err := us.GetReplica().Select(&users, query, map[string]interface{}{"ChannelId": channelId, "Offset": offset, "Limit": limit}); err != nil {
-			result.Err = model.NewLocAppError("SqlUserStore.GetProfilesInChannel", "store.sql_user.get_profiles.app_error", nil, err.Error())
+		if _, err := us.GetReplica().Select(&users, query, map[string]interface{}{"ChannelId": channelId}); err != nil {
+			result.Err = model.NewLocAppError("SqlUserStore.GetAllProfilesInChannel", "store.sql_user.get_profiles.app_error", nil, err.Error())
 		} else {
 
 			userMap := make(map[string]*model.User)
@@ -647,7 +670,7 @@ func (us SqlUserStore) GetProfilesInChannel(channelId string, offset int, limit 
 
 			result.Data = userMap
 
-			if allowFromCache && offset == -1 && limit == -1 {
+			if allowFromCache {
 				profilesInChannelCache.AddWithExpiresInSecs(channelId, userMap, PROFILES_IN_CHANNEL_CACHE_SEC)
 			}
 		}
@@ -686,16 +709,13 @@ func (us SqlUserStore) GetProfilesNotInChannel(teamId string, channelId string, 
 			result.Err = model.NewLocAppError("SqlUserStore.GetProfilesNotInChannel", "store.sql_user.get_profiles.app_error", nil, err.Error())
 		} else {
 
-			userMap := make(map[string]*model.User)
-
 			for _, u := range users {
 				u.Password = ""
 				u.AuthData = new(string)
 				*u.AuthData = ""
-				userMap[u.Id] = u
 			}
 
-			result.Data = userMap
+			result.Data = users
 		}
 
 		storeChannel <- result
@@ -806,8 +826,7 @@ func (us SqlUserStore) GetProfileByIds(userIds []string, allowFromCache bool) St
 		result := StoreResult{}
 		metrics := einterfaces.GetMetricsInterface()
 
-		var users []*model.User
-		userMap := make(map[string]*model.User)
+		users := []*model.User{}
 		props := make(map[string]interface{})
 		idQuery := ""
 		remainingUserIds := make([]string, 0)
@@ -816,13 +835,13 @@ func (us SqlUserStore) GetProfileByIds(userIds []string, allowFromCache bool) St
 			for _, userId := range userIds {
 				if cacheItem, ok := profileByIdsCache.Get(userId); ok {
 					u := cacheItem.(*model.User)
-					userMap[u.Id] = u
+					users = append(users, u)
 				} else {
 					remainingUserIds = append(remainingUserIds, userId)
 				}
 			}
 			if metrics != nil {
-				metrics.AddMemCacheHitCounter("Profile By Ids", float64(len(userMap)))
+				metrics.AddMemCacheHitCounter("Profile By Ids", float64(len(users)))
 				metrics.AddMemCacheMissCounter("Profile By Ids", float64(len(remainingUserIds)))
 			}
 		} else {
@@ -834,7 +853,7 @@ func (us SqlUserStore) GetProfileByIds(userIds []string, allowFromCache bool) St
 
 		// If everything came from the cache then just return
 		if len(remainingUserIds) == 0 {
-			result.Data = userMap
+			result.Data = users
 			storeChannel <- result
 			close(storeChannel)
 			return
@@ -857,11 +876,10 @@ func (us SqlUserStore) GetProfileByIds(userIds []string, allowFromCache bool) St
 				u.Password = ""
 				u.AuthData = new(string)
 				*u.AuthData = ""
-				userMap[u.Id] = u
 				profileByIdsCache.AddWithExpiresInSecs(u.Id, u, PROFILE_BY_IDS_CACHE_SEC)
 			}
 
-			result.Data = userMap
+			result.Data = users
 		}
 
 		storeChannel <- result
@@ -1118,6 +1136,31 @@ func (us SqlUserStore) AnalyticsUniqueUserCount(teamId string) StoreChannel {
 		v, err := us.GetReplica().SelectInt(query, map[string]interface{}{"TeamId": teamId})
 		if err != nil {
 			result.Err = model.NewLocAppError("SqlUserStore.AnalyticsUniqueUserCount", "store.sql_user.analytics_unique_user_count.app_error", nil, err.Error())
+		} else {
+			result.Data = v
+		}
+
+		storeChannel <- result
+		close(storeChannel)
+	}()
+
+	return storeChannel
+}
+
+func (us SqlUserStore) AnalyticsActiveCount(timePeriod int64) StoreChannel {
+
+	storeChannel := make(StoreChannel, 1)
+
+	go func() {
+		result := StoreResult{}
+
+		time := model.GetMillis() - timePeriod
+
+		query := "SELECT COUNT(*) FROM Status WHERE LastActivityAt > :Time"
+
+		v, err := us.GetReplica().SelectInt(query, map[string]interface{}{"Time": time})
+		if err != nil {
+			result.Err = model.NewLocAppError("SqlUserStore.AnalyticsDailyActiveUsers", "store.sql_user.analytics_daily_active_users.app_error", nil, err.Error())
 		} else {
 			result.Data = v
 		}

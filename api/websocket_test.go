@@ -6,11 +6,14 @@ package api
 import (
 	//"encoding/json"
 	//"net/http"
+	"net/http"
 	"testing"
 	"time"
 
-	//"github.com/gorilla/websocket"
+	"github.com/gorilla/websocket"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/model"
+	"github.com/mattermost/platform/utils"
 )
 
 /*func TestWebSocketAuthentication(t *testing.T) {
@@ -192,7 +195,7 @@ func TestWebSocketEvent(t *testing.T) {
 	omitUser["somerandomid"] = true
 	evt1 := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_TYPING, "", th.BasicChannel.Id, "", omitUser)
 	evt1.Add("user_id", "somerandomid")
-	Publish(evt1)
+	app.Publish(evt1)
 
 	time.Sleep(300 * time.Millisecond)
 
@@ -221,7 +224,7 @@ func TestWebSocketEvent(t *testing.T) {
 	}
 
 	evt2 := model.NewWebSocketEvent(model.WEBSOCKET_EVENT_TYPING, "", "somerandomid", "", nil)
-	go Publish(evt2)
+	go app.Publish(evt2)
 	time.Sleep(300 * time.Millisecond)
 
 	eventHit = false
@@ -245,6 +248,90 @@ func TestWebSocketEvent(t *testing.T) {
 
 	if eventHit {
 		t.Fatal("got typing event for bad channel id")
+	}
+}
+
+func TestCreateDirectChannelWithSocket(t *testing.T) {
+	th := Setup().InitBasic()
+	Client := th.BasicClient
+	user2 := th.BasicUser2
+
+	users := make([]*model.User, 0)
+	users = append(users, user2)
+
+	for i := 0; i < 10; i++ {
+		users = append(users, th.CreateUser(Client))
+	}
+
+	WebSocketClient, err := th.CreateWebSocketClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer WebSocketClient.Close()
+	WebSocketClient.Listen()
+
+	time.Sleep(300 * time.Millisecond)
+	if resp := <-WebSocketClient.ResponseChannel; resp.Status != model.STATUS_OK {
+		t.Fatal("should have responded OK to authentication challenge")
+	}
+
+	wsr := <-WebSocketClient.EventChannel
+	if wsr.Event != model.WEBSOCKET_EVENT_HELLO {
+		t.Fatal("missing hello")
+	}
+
+	stop := make(chan bool)
+	count := 0
+
+	go func() {
+		for {
+			select {
+			case wsr := <-WebSocketClient.EventChannel:
+				if wsr.Event == model.WEBSOCKET_EVENT_DIRECT_ADDED {
+					count = count + 1
+				}
+
+			case <-stop:
+				return
+			}
+		}
+	}()
+
+	for _, user := range users {
+		time.Sleep(100 * time.Millisecond)
+		if _, err := Client.CreateDirectChannel(user.Id); err != nil {
+			t.Fatal("failed to create DM channel")
+		}
+	}
+
+	time.Sleep(5000 * time.Millisecond)
+
+	stop <- true
+
+	if count != len(users) {
+		t.Fatal("We didn't get the proper amount of direct_added messages")
+	}
+
+}
+
+func TestWebsocketOriginSecurity(t *testing.T) {
+	Setup().InitBasic()
+	url := "ws://localhost" + utils.Cfg.ServiceSettings.ListenAddress
+
+	// Should fail because origin doesn't match
+	_, _, err := websocket.DefaultDialer.Dial(url+model.API_URL_SUFFIX_V3+"/users/websocket", http.Header{
+		"Origin": []string{"http://www.evil.com"},
+	})
+	if err == nil {
+		t.Fatal("Should have errored because Origin does not match host! SECURITY ISSUE!")
+	}
+
+	// We are not a browser so we can spoof this just fine
+	_, _, err = websocket.DefaultDialer.Dial(url+model.API_URL_SUFFIX_V3+"/users/websocket", http.Header{
+		"Origin": []string{"http://localhost" + utils.Cfg.ServiceSettings.ListenAddress},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

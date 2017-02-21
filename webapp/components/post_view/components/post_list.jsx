@@ -45,6 +45,7 @@ export default class PostList extends React.Component {
         this.scrollToBottom = this.scrollToBottom.bind(this);
         this.scrollToBottomAnimated = this.scrollToBottomAnimated.bind(this);
         this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.childComponentDidUpdate = this.childComponentDidUpdate.bind(this);
 
         this.jumpToPostNode = null;
         this.wasAtBottom = true;
@@ -119,16 +120,9 @@ export default class PostList extends React.Component {
                 break;
             }
         }
-        this.wasAtBottom = this.isAtBottom();
         if (!this.jumpToPostNode && childNodes.length > 0) {
             this.jumpToPostNode = childNodes[childNodes.length - 1];
         }
-
-        // --- --------
-
-        this.props.postListScrolled(this.isAtBottom());
-        this.prevScrollHeight = this.refs.postlist.scrollHeight;
-        this.prevOffsetTop = this.jumpToPostNode.offsetTop;
 
         this.updateFloatingTimestamp();
 
@@ -137,6 +131,15 @@ export default class PostList extends React.Component {
                 isScrolling: true
             });
         }
+
+        // Postpone all DOM related calculations to next frame.
+        // scrollHeight etc might return wrong data at this point
+        setTimeout(() => {
+            this.wasAtBottom = this.isAtBottom();
+            this.props.postListScrolled(this.isAtBottom());
+            this.prevScrollHeight = this.refs.postlist.scrollHeight;
+            this.prevOffsetTop = this.jumpToPostNode.offsetTop;
+        }, 0);
 
         this.scrollStopAction.fireAfter(Constants.SCROLL_DELAY);
     }
@@ -159,7 +162,7 @@ export default class PostList extends React.Component {
                 const id = this.props.postList.order[i];
                 const element = this.refs[id];
 
-                if (!element || element.offsetTop + element.clientHeight <= this.refs.postlist.scrollTop) {
+                if (!element || !element.domNode || element.domNode.offsetTop + element.domNode.clientHeight <= this.refs.postlist.scrollTop) {
                     // this post is off the top of the screen so the last one is at the top of the screen
                     let topPostId;
 
@@ -347,6 +350,7 @@ export default class PostList extends React.Component {
                     isFlagged={isFlagged}
                     status={status}
                     isBusy={this.props.isBusy}
+                    childComponentDidUpdateFunction={this.childComponentDidUpdate}
                 />
             );
 
@@ -421,6 +425,11 @@ export default class PostList extends React.Component {
                     this.scrollToBottom();
                 }
             });
+
+            // This avoids the scroll jumping from top to bottom after the page has rendered (PLT-5025).
+            if (!this.refs.newMessageSeparator) {
+                this.scrollToBottom();
+            }
         } else if (this.props.scrollType === ScrollTypes.POST && this.props.scrollPostId) {
             window.requestAnimationFrame(() => {
                 const postNode = ReactDOM.findDOMNode(this.refs[this.props.scrollPostId]);
@@ -487,6 +496,12 @@ export default class PostList extends React.Component {
         );
     }
 
+    checkAndUpdateScrolling() {
+        if (this.props.postList != null && this.refs.postlist) {
+            this.updateScrolling();
+        }
+    }
+
     componentDidMount() {
         if (this.props.postList != null) {
             this.updateScrolling();
@@ -504,9 +519,11 @@ export default class PostList extends React.Component {
     }
 
     componentDidUpdate() {
-        if (this.props.postList != null && this.refs.postlist) {
-            this.updateScrolling();
-        }
+        this.checkAndUpdateScrolling();
+    }
+
+    childComponentDidUpdate() {
+        this.checkAndUpdateScrolling();
     }
 
     render() {

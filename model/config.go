@@ -49,6 +49,14 @@ const (
 	RESTRICT_EMOJI_CREATION_ADMIN        = "admin"
 	RESTRICT_EMOJI_CREATION_SYSTEM_ADMIN = "system_admin"
 
+	PERMISSIONS_DELETE_POST_ALL          = "all"
+	PERMISSIONS_DELETE_POST_TEAM_ADMIN   = "team_admin"
+	PERMISSIONS_DELETE_POST_SYSTEM_ADMIN = "system_admin"
+
+	ALLOW_EDIT_POST_ALWAYS     = "always"
+	ALLOW_EDIT_POST_NEVER      = "never"
+	ALLOW_EDIT_POST_TIME_LIMIT = "time_limit"
+
 	EMAIL_BATCHING_BUFFER_SIZE = 256
 	EMAIL_BATCHING_INTERVAL    = 30
 
@@ -56,42 +64,48 @@ const (
 )
 
 type ServiceSettings struct {
-	SiteURL                           *string
-	ListenAddress                     string
-	ConnectionSecurity                *string
-	TLSCertFile                       *string
-	TLSKeyFile                        *string
-	UseLetsEncrypt                    *bool
-	LetsEncryptCertificateCacheFile   *string
-	Forward80To443                    *bool
-	ReadTimeout                       *int
-	WriteTimeout                      *int
-	MaximumLoginAttempts              int
-	SegmentDeveloperKey               string
-	GoogleDeveloperKey                string
-	EnableOAuthServiceProvider        bool
-	EnableIncomingWebhooks            bool
-	EnableOutgoingWebhooks            bool
-	EnableCommands                    *bool
-	EnableOnlyAdminIntegrations       *bool
-	EnablePostUsernameOverride        bool
-	EnablePostIconOverride            bool
-	EnableTesting                     bool
-	EnableDeveloper                   *bool
-	EnableSecurityFixAlert            *bool
-	EnableInsecureOutgoingConnections *bool
-	EnableMultifactorAuthentication   *bool
-	EnforceMultifactorAuthentication  *bool
-	AllowCorsFrom                     *string
-	SessionLengthWebInDays            *int
-	SessionLengthMobileInDays         *int
-	SessionLengthSSOInDays            *int
-	SessionCacheInMinutes             *int
-	WebsocketSecurePort               *int
-	WebsocketPort                     *int
-	WebserverMode                     *string
-	EnableCustomEmoji                 *bool
-	RestrictCustomEmojiCreation       *string
+	SiteURL                                  *string
+	ListenAddress                            string
+	ConnectionSecurity                       *string
+	TLSCertFile                              *string
+	TLSKeyFile                               *string
+	UseLetsEncrypt                           *bool
+	LetsEncryptCertificateCacheFile          *string
+	Forward80To443                           *bool
+	ReadTimeout                              *int
+	WriteTimeout                             *int
+	MaximumLoginAttempts                     int
+	SegmentDeveloperKey                      string
+	GoogleDeveloperKey                       string
+	EnableOAuthServiceProvider               bool
+	EnableIncomingWebhooks                   bool
+	EnableOutgoingWebhooks                   bool
+	EnableCommands                           *bool
+	EnableOnlyAdminIntegrations              *bool
+	EnablePostUsernameOverride               bool
+	EnablePostIconOverride                   bool
+	EnableTesting                            bool
+	EnableDeveloper                          *bool
+	EnableSecurityFixAlert                   *bool
+	EnableInsecureOutgoingConnections        *bool
+	EnableMultifactorAuthentication          *bool
+	EnforceMultifactorAuthentication         *bool
+	AllowCorsFrom                            *string
+	SessionLengthWebInDays                   *int
+	SessionLengthMobileInDays                *int
+	SessionLengthSSOInDays                   *int
+	SessionCacheInMinutes                    *int
+	WebsocketSecurePort                      *int
+	WebsocketPort                            *int
+	WebserverMode                            *string
+	EnableCustomEmoji                        *bool
+	RestrictCustomEmojiCreation              *string
+	RestrictPostDelete                       *string
+	AllowEditPost                            *string
+	PostEditTimeLimit                        *int
+	TimeBetweenUserTypingUpdatesMilliseconds *int64
+	EnableUserTypingMessages                 *bool
+	ClusterLogTimeoutMilliseconds            *int
 }
 
 type ClusterSettings struct {
@@ -827,6 +841,21 @@ func (o *Config) SetDefaults() {
 		*o.ServiceSettings.RestrictCustomEmojiCreation = RESTRICT_EMOJI_CREATION_ALL
 	}
 
+	if o.ServiceSettings.RestrictPostDelete == nil {
+		o.ServiceSettings.RestrictPostDelete = new(string)
+		*o.ServiceSettings.RestrictPostDelete = PERMISSIONS_DELETE_POST_ALL
+	}
+
+	if o.ServiceSettings.AllowEditPost == nil {
+		o.ServiceSettings.AllowEditPost = new(string)
+		*o.ServiceSettings.AllowEditPost = ALLOW_EDIT_POST_ALWAYS
+	}
+
+	if o.ServiceSettings.PostEditTimeLimit == nil {
+		o.ServiceSettings.PostEditTimeLimit = new(int)
+		*o.ServiceSettings.PostEditTimeLimit = 300
+	}
+
 	if o.ClusterSettings.InterNodeListenAddress == nil {
 		o.ClusterSettings.InterNodeListenAddress = new(string)
 		*o.ClusterSettings.InterNodeListenAddress = ":8075"
@@ -1044,6 +1073,21 @@ func (o *Config) SetDefaults() {
 	if o.MetricsSettings.BlockProfileRate == nil {
 		o.MetricsSettings.BlockProfileRate = new(int)
 		*o.MetricsSettings.BlockProfileRate = 0
+	}
+
+	if o.ServiceSettings.TimeBetweenUserTypingUpdatesMilliseconds == nil {
+		o.ServiceSettings.TimeBetweenUserTypingUpdatesMilliseconds = new(int64)
+		*o.ServiceSettings.TimeBetweenUserTypingUpdatesMilliseconds = 5000
+	}
+
+	if o.ServiceSettings.EnableUserTypingMessages == nil {
+		o.ServiceSettings.EnableUserTypingMessages = new(bool)
+		*o.ServiceSettings.EnableUserTypingMessages = true
+	}
+
+	if o.ServiceSettings.ClusterLogTimeoutMilliseconds == nil {
+		o.ServiceSettings.ClusterLogTimeoutMilliseconds = new(int)
+		*o.ServiceSettings.ClusterLogTimeoutMilliseconds = 2000
 	}
 
 	o.defaultWebrtcSettings()
@@ -1275,6 +1319,10 @@ func (o *Config) IsValid() *AppError {
 
 	if *o.ServiceSettings.WriteTimeout <= 0 {
 		return NewLocAppError("Config.IsValid", "model.config.is_valid.write_timeout.app_error", nil, "")
+	}
+
+	if *o.ServiceSettings.TimeBetweenUserTypingUpdatesMilliseconds < 1000 {
+		return NewLocAppError("Config.IsValid", "model.config.is_valid.time_between_user_typing.app_error", nil, "")
 	}
 
 	return nil

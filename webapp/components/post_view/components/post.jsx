@@ -237,6 +237,7 @@ export default class Post extends React.Component {
                 profilePic = (
                     <ProfilePicture
                         src=''
+                        status={status}
                     />
                 );
             }
@@ -250,7 +251,11 @@ export default class Post extends React.Component {
         }
 
         return (
-            <div>
+            <div
+                ref={(div) => {
+                    this.domNode = div;
+                }}
+            >
                 <div
                     id={'post_' + post.id}
                     className={'post ' + sameUserClass + ' ' + compactClass + ' ' + rootUser + ' ' + postType + ' ' + currentUserCss + ' ' + shouldHighlightClass + ' ' + systemMessageClass + ' ' + hideControls + ' ' + dropdownOpenedClass}
@@ -285,6 +290,7 @@ export default class Post extends React.Component {
                                 compactDisplay={this.props.compactDisplay}
                                 previewCollapsed={this.props.previewCollapsed}
                                 isCommentMention={this.props.isCommentMention}
+                                childComponentDidUpdateFunction={this.props.childComponentDidUpdateFunction}
                             />
                         </div>
                     </div>
@@ -313,5 +319,6 @@ Post.propTypes = {
     useMilitaryTime: React.PropTypes.bool.isRequired,
     isFlagged: React.PropTypes.bool,
     status: React.PropTypes.string,
-    isBusy: React.PropTypes.bool
+    isBusy: React.PropTypes.bool,
+    childComponentDidUpdateFunction: React.PropTypes.func
 };

@@ -1,6 +1,14 @@
 @charset 'UTF-8';
 
 @media screen and (max-width: 768px) {
+    .post-create__container {
+        padding-bottom: 10px;
+
+        .msg-typing {
+            display: none;
+        }
+    }
+
     .suggestion-list__content {
         max-height: 145px;
     }
@@ -17,6 +25,12 @@
             .btn {
                 width: 100%;
             }
+        }
+    }
+
+    .settings-modal {
+        .modal-body {
+            overflow: auto;
         }
     }
 
@@ -132,6 +146,14 @@
         display: block;
     }
 
+    .post-code {
+        &:hover {
+            .post-code__language {
+                @include opacity(.6);
+            }
+        }
+    }
+
     .backstage-filters {
         display: block;
 
@@ -212,6 +234,9 @@
                         bottom: 0;
                     }
                 }
+            }
+            blockquote {
+                margin-top: 0;
             }
         }
 
@@ -344,10 +369,6 @@
                 }
 
                 .post__img {
-                    .status-wrapper {
-                        display: inline-block;
-                    }
-
                     img {
                         display: block;
                     }
@@ -427,8 +448,8 @@
     }
 
     .search-help-popover {
-        margin-left: 10px;
-        max-width: calc(100% - 20px);
+        left: 55px;
+        max-width: calc(100% - 80px);
     }
 
     .modal-direct-channels,
@@ -603,6 +624,17 @@
                         display: block;
 
                         .settings-content {
+                            .section-title {
+                                padding-right: 15px;
+                            }
+
+                            .section-edit {
+                                position: relative;
+                                right: 0;
+                                text-align: left;
+                                top: 0;
+                            }
+
                             .appearance-section {
                                 .theme-elements {
                                     .element {
@@ -720,28 +752,6 @@
 
     .file-preview {
         margin-top: 0;
-    }
-
-    .file-preview__remove {
-        @include alpha-property(background, $black, .5);
-        height: 28px;
-        left: auto;
-        right: 0;
-        text-align: center;
-        top: 0;
-        width: 28px;
-
-        &:after {
-            display: none;
-        }
-
-        i {
-            font-size: 16px;
-            line-height: 29px;
-            position: relative;
-            right: auto;
-            top: auto;
-        }
     }
 
     // Since system console is not responsive we're overriding bootstrap styles for it
@@ -886,31 +896,11 @@
         }
     }
 
-    .search__clear {
-        display: block;
-    }
-
     .search-bar__container {
         @include flex(0 0 44px);
         background: $primary-color;
         color: $white;
         padding: 0;
-
-        &.focused {
-            .sidebar__collapse {
-                @include translateX(-45px);
-            }
-
-            .search__form {
-                @include translateX(-45px);
-                padding-left: 55px;
-                padding-right: 24px;
-            }
-
-            .search__clear {
-                @include translateX(0);
-            }
-        }
 
         .search__form {
             @include single-transition(all, .2s, linear);
@@ -935,7 +925,7 @@
                 background: $white;
                 border: none;
                 color: $dark-gray;
-                padding: 0 10px 0 31px;
+                padding: 0 31px 0 31px;
             }
         }
 
@@ -1075,23 +1065,32 @@
             }
 
             .post-create-footer {
-                padding: 0 45px 0 45px;
-
                 .control-label {
                     margin: .5em 0;
                     top: 0;
                 }
 
                 .post-error {
-                    top: 0;
                     left: 0;
-              }
+                    top: 0;
+                }
             }
         }
 
         .sidebar__collapse,
         .sidebar__search-icon {
             display: block;
+        }
+
+        .sidebar__clear-icon {
+            display: block;
+            &.visible {
+                visibility: visible;
+            }
+        }
+
+        .fa-times {
+            margin-left: 15px;
         }
 
         .sidebar--right__close {
@@ -1214,16 +1213,22 @@
 }
 
 @media screen and (max-width: 640px) {
+    .filtered-user-list {
+        height: calc(100vh - 80px);
+    }
+
+    .more-modal--action {
+        .filtered-user-list {
+            height: calc(100vh - 110px);
+        }
+    }
+
     .app__body {
         .modal {
             .more-modal {
                 .modal-body {
                     max-height: calc(100vh - 62px);
                     padding-bottom: 5px;
-                }
-
-                .more-modal__list {
-                    max-height: calc(100vh - 230px);
                 }
             }
         }
@@ -1385,15 +1390,14 @@
 @media screen and (max-width: 550px) {
     .app__body {
         .more-modal {
-            .filter-row {
-                width: 100%;
+            &.more-system-members {
+                .filter-row {
+                    min-height: 80px;
+                    width: 100%;
+                }
             }
 
             &.more-direct-channels {
-                .filter-row {
-                    padding-bottom: 50px;
-                }
-
                 .member-show {
                     display: none;
                 }
@@ -1451,16 +1455,6 @@
 
     .app__body {
         .modal {
-            &.more-channel__modal {
-                .more-modal__list {
-                    max-height: calc(100vh - 250px);
-                }
-
-                .modal-body {
-                    padding-bottom: 35px;
-                }
-            }
-
             .settings-modal {
                 &.display--content {
                     .modal-body {
@@ -1562,17 +1556,24 @@
     }
 
     .tutorial-steps__container {
+        left: 0;
+        position: fixed;
+        top: 0;
+
         .tutorial__content {
             .tutorial__steps {
+                margin-top: 20px;
+                min-height: auto;
                 padding: 0 20px;
                 width: 100%;
 
                 h1 {
-                    font-size: 35px;
+                    font-size: 2em;
                     margin: -5px 0 20px;
                 }
 
                 h3 {
+                    font-size: 1.5em;
                     margin-bottom: 10px;
                 }
 
@@ -1581,14 +1582,14 @@
                 }
 
                 .tutorial__circles {
-                    bottom: 60px;
-                    margin: 0 0 15px;
-                    position: absolute;
+                    bottom: auto;
+                    margin: 15px 0 20px;
+                    position: relative;
                 }
 
                 .tutorial__footer {
-                    bottom: 30px;
-                    position: absolute;
+                    bottom: auto;
+                    position: relative;
                 }
             }
         }

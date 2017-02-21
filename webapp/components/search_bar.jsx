@@ -2,9 +2,6 @@
 // See License.txt for license information.
 
 import $ from 'jquery';
-import ReactDOM from 'react-dom';
-import Client from 'client/web_client.jsx';
-import * as AsyncClient from 'utils/async_client.jsx';
 import * as GlobalActions from 'actions/global_actions.jsx';
 import SearchStore from 'stores/search_store.jsx';
 import UserStore from 'stores/user_store.jsx';
@@ -15,7 +12,7 @@ import SearchSuggestionList from './suggestion/search_suggestion_list.jsx';
 import SearchUserProvider from './suggestion/search_user_provider.jsx';
 import * as Utils from 'utils/utils.jsx';
 import Constants from 'utils/constants.jsx';
-import {loadProfilesForPosts, getFlaggedPosts} from 'actions/post_actions.jsx';
+import {getFlaggedPosts, performSearch} from 'actions/post_actions.jsx';
 
 import {FormattedMessage, FormattedHTMLMessage} from 'react-intl';
 
@@ -32,6 +29,7 @@ export default class SearchBar extends React.Component {
         this.onListenerChange = this.onListenerChange.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleUserFocus = this.handleUserFocus.bind(this);
+        this.handleClear = this.handleClear.bind(this);
         this.handleUserBlur = this.handleUserBlur.bind(this);
         this.performSearch = this.performSearch.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
@@ -40,6 +38,7 @@ export default class SearchBar extends React.Component {
 
         const state = this.getSearchTermStateFromStores();
         state.focused = false;
+        state.isPristine = true;
         this.state = state;
 
         this.suggestionProviders = [new SearchChannelProvider(), new SearchUserProvider()];
@@ -74,10 +73,6 @@ export default class SearchBar extends React.Component {
         }
     }
 
-    clearFocus() {
-        $('.search-bar__container').removeClass('focused');
-    }
-
     handleClose(e) {
         e.preventDefault();
 
@@ -110,36 +105,33 @@ export default class SearchBar extends React.Component {
         this.setState({focused: false});
     }
 
-    handleUserFocus() {
-        $('.search-bar__container').addClass('focused');
+    handleClear() {
+        this.setState({searchTerm: ''});
+    }
 
+    handleUserFocus() {
         this.setState({focused: true});
     }
 
     performSearch(terms, isMentionSearch) {
         if (terms.length) {
-            this.setState({isSearching: true});
+            this.setState({
+                isSearching: true,
+                isPristine: false
+            });
 
-            Client.search(
+            performSearch(
                 terms,
                 isMentionSearch,
-                (data) => {
+                () => {
                     this.setState({isSearching: false});
-                    if (Utils.isMobile()) {
-                        ReactDOM.findDOMNode(this.refs.search).value = '';
+
+                    if (Utils.isMobile() && this.search) {
+                        this.search.value = '';
                     }
-
-                    AppDispatcher.handleServerAction({
-                        type: ActionTypes.RECEIVED_SEARCH,
-                        results: data,
-                        is_mention_search: isMentionSearch
-                    });
-
-                    loadProfilesForPosts(data.posts);
                 },
-                (err) => {
+                () => {
                     this.setState({isSearching: false});
-                    AsyncClient.dispatchError(err, 'search');
                 }
             );
         }
@@ -148,8 +140,7 @@ export default class SearchBar extends React.Component {
     handleSubmit(e) {
         e.preventDefault();
         this.performSearch(this.state.searchTerm.trim());
-        $(ReactDOM.findDOMNode(this.refs.search)).find('input').blur();
-        this.clearFocus();
+        $(this.search).find('input').blur();
     }
 
     searchMentions(e) {
@@ -172,6 +163,25 @@ export default class SearchBar extends React.Component {
         }
     }
 
+    renderHintPopover(helpClass) {
+        if (!this.props.isCommentsPage && Utils.isMobile() && this.state.isPristine) {
+            return false;
+        }
+
+        return (
+            <Popover
+                id='searchbar-help-popup'
+                placement='bottom'
+                className={helpClass}
+            >
+                <FormattedHTMLMessage
+                    id='search_bar.usage'
+                    defaultMessage='<h4>Search Options</h4><ul><li><span>Use </span><b>"quotation marks"</b><span> to search for phrases</span></li><li><span>Use </span><b>from:</b><span> to find posts from specific users and </span><b>in:</b><span> to find posts in specific channels</span></li></ul>'
+                />
+            </Popover>
+        );
+    }
+
     render() {
         const flagIcon = Constants.FLAG_ICON_SVG;
         var isSearching = null;
@@ -191,19 +201,6 @@ export default class SearchBar extends React.Component {
                     defaultMessage='Recent Mentions'
                 />
             </Tooltip>
-        );
-
-        const searchPopover = (
-            <Popover
-                id='searchbar-help-popup'
-                placement='bottom'
-                className={helpClass}
-            >
-                <FormattedHTMLMessage
-                    id='search_bar.usage'
-                    defaultMessage='<h4>Search Options</h4><ul><li><span>Use </span><b>"quotation marks"</b><span> to search for phrases</span></li><li><span>Use </span><b>from:</b><span> to find posts from specific users and </span><b>in:</b><span> to find posts in specific channels</span></li></ul>'
-                />
-            </Popover>
         );
 
         const flaggedTooltip = (
@@ -264,6 +261,11 @@ export default class SearchBar extends React.Component {
             );
         }
 
+        let clearClass = 'sidebar__clear-icon';
+        if (!this.state.isSearching && this.state.searchTerm && this.state.searchTerm.trim() !== '') {
+            clearClass += ' visible';
+        }
+
         return (
             <div>
                 <div
@@ -272,15 +274,6 @@ export default class SearchBar extends React.Component {
                 >
                     <span className='fa fa-angle-left'/>
                 </div>
-                <span
-                    className='search__clear'
-                    onClick={this.clearFocus}
-                >
-                    <FormattedMessage
-                        id='search_bar.cancel'
-                        defaultMessage='Cancel'
-                    />
-                </span>
                 <form
                     role='form'
                     className='search__form'
@@ -289,28 +282,28 @@ export default class SearchBar extends React.Component {
                     autoComplete='off'
                 >
                     <span className='fa fa-search sidebar__search-icon'/>
-                    <OverlayTrigger
-                        delayShow={Constants.OVERLAY_TIME_DELAY_SMALL}
-                        placement='bottom'
-                        overlay={searchPopover}
-                        trigger='focus'
-                        rootClose={true}
-                        className={helpClass}
+                    <SuggestionBox
+                        ref={(search) => {
+                            this.search = search;
+                        }}
+                        className='form-control search-bar'
+                        placeholder={Utils.localizeMessage('search_bar.search', 'Search')}
+                        value={this.state.searchTerm}
+                        onFocus={this.handleUserFocus}
+                        onBlur={this.handleUserBlur}
+                        onChange={this.handleChange}
+                        listComponent={SearchSuggestionList}
+                        providers={this.suggestionProviders}
+                        type='search'
+                    />
+                    <span
+                        className={clearClass}
+                        onClick={this.handleClear}
                     >
-                        <SuggestionBox
-                            ref='search'
-                            className='form-control search-bar'
-                            placeholder={Utils.localizeMessage('search_bar.search', 'Search')}
-                            value={this.state.searchTerm}
-                            onFocus={this.handleUserFocus}
-                            onBlur={this.handleUserBlur}
-                            onChange={this.handleChange}
-                            listComponent={SearchSuggestionList}
-                            providers={this.suggestionProviders}
-                            type='search'
-                        />
-                    </OverlayTrigger>
+                        <i className='fa fa-times'/>
+                    </span>
                     {isSearching}
+                    {this.renderHintPopover(helpClass)}
                 </form>
 
                 {mentionBtn}
@@ -325,5 +318,6 @@ SearchBar.defaultProps = {
 };
 
 SearchBar.propTypes = {
-    showMentionFlagBtns: React.PropTypes.bool
+    showMentionFlagBtns: React.PropTypes.bool,
+    isCommentsPage: React.PropTypes.bool
 };

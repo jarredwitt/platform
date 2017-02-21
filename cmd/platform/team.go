@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/mattermost/platform/api"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/model"
 	"github.com/spf13/cobra"
 )
@@ -92,10 +92,8 @@ func createTeamCmdF(cmd *cobra.Command, args []string) error {
 		Type:        teamType,
 	}
 
-	c := getMockContext()
-	api.CreateTeam(c, team)
-	if c.Err != nil {
-		return errors.New("Team creation failed: " + c.Err.Error())
+	if _, err := app.CreateTeam(team); err != nil {
+		return errors.New("Team creation failed: " + err.Error())
 	}
 
 	return nil
@@ -126,7 +124,7 @@ func removeUserFromTeam(team *model.Team, user *model.User, userArg string) {
 		CommandPrintErrorln("Can't find user '" + userArg + "'")
 		return
 	}
-	if err := api.LeaveTeam(team, user); err != nil {
+	if err := app.LeaveTeam(team, user); err != nil {
 		CommandPrintErrorln("Unable to remove '" + userArg + "' from " + team.Name + ". Error: " + err.Error())
 	}
 }
@@ -156,7 +154,7 @@ func addUserToTeam(team *model.Team, user *model.User, userArg string) {
 		CommandPrintErrorln("Can't find user '" + userArg + "'")
 		return
 	}
-	if err := api.JoinUserToTeam(team, user); err != nil {
+	if err := app.JoinUserToTeam(team, user); err != nil {
 		CommandPrintErrorln("Unable to add '" + userArg + "' to " + team.Name)
 	}
 }
@@ -201,5 +199,5 @@ func deleteTeamsCmdF(cmd *cobra.Command, args []string) error {
 }
 
 func deleteTeam(team *model.Team) *model.AppError {
-	return api.PermanentDeleteTeam(team)
+	return app.PermanentDeleteTeam(team)
 }

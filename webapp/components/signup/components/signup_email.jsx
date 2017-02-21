@@ -4,12 +4,12 @@
 import LoadingScreen from 'components/loading_screen.jsx';
 
 import * as GlobalActions from 'actions/global_actions.jsx';
-import {track} from 'actions/analytics_actions.jsx';
-
 import BrowserStore from 'stores/browser_store.jsx';
+import {track} from 'actions/analytics_actions.jsx';
+import {getInviteInfo} from 'actions/team_actions.jsx';
+import {loginById, createUserWithInvite} from 'actions/user_actions.jsx';
 
 import * as Utils from 'utils/utils.jsx';
-import Client from 'client/web_client.jsx';
 import Constants from 'utils/constants.jsx';
 
 import React from 'react';
@@ -58,7 +58,7 @@ export default class SignupEmail extends React.Component {
             loading = false;
         } else if (inviteId && inviteId.length > 0) {
             loading = true;
-            Client.getInviteInfo(
+            getInviteInfo(
                 inviteId,
                 (inviteData) => {
                     if (!inviteData) {
@@ -118,7 +118,7 @@ export default class SignupEmail extends React.Component {
 
     handleSignupSuccess(user, data) {
         track('signup', 'signup_user_02_complete');
-        Client.loginById(
+        loginById(
             data.id,
             user.password,
             '',
@@ -241,7 +241,7 @@ export default class SignupEmail extends React.Component {
                 allow_marketing: true
             };
 
-            Client.createUserWithInvite(user,
+            createUserWithInvite(user,
                 this.state.data,
                 this.state.hash,
                 this.state.inviteId,
@@ -459,7 +459,7 @@ export default class SignupEmail extends React.Component {
         return (
             <div>
                 <div className='signup-header'>
-                    <Link to='/signup_user_complete'>
+                    <Link to='/'>
                         <span className='fa fa-chevron-left'/>
                         <FormattedMessage
                             id='web.header.back'

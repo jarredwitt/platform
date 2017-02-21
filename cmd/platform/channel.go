@@ -5,7 +5,7 @@ package main
 import (
 	"errors"
 
-	"github.com/mattermost/platform/api"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
 	"github.com/spf13/cobra"
@@ -116,6 +116,11 @@ func createChannelCmdF(cmd *cobra.Command, args []string) error {
 	}
 
 	team := getTeamFromTeamArg(teamArg)
+	if team == nil {
+		return errors.New("Unable to find team: " + teamArg)
+	}
+
+	c := getMockContext()
 
 	channel := &model.Channel{
 		TeamId:      team.Id,
@@ -124,10 +129,10 @@ func createChannelCmdF(cmd *cobra.Command, args []string) error {
 		Header:      header,
 		Purpose:     purpose,
 		Type:        channelType,
+		CreatorId:   c.Session.UserId,
 	}
 
-	c := getMockContext()
-	if _, err := api.CreateChannel(c, channel, false); err != nil {
+	if _, err := app.CreateChannel(channel, false); err != nil {
 		return err
 	}
 
@@ -163,7 +168,7 @@ func removeUserFromChannel(channel *model.Channel, user *model.User, userArg str
 		CommandPrintErrorln("Can't find user '" + userArg + "'")
 		return
 	}
-	if err := api.RemoveUserFromChannel(user.Id, "", channel); err != nil {
+	if err := app.RemoveUserFromChannel(user.Id, "", channel); err != nil {
 		CommandPrintErrorln("Unable to remove '" + userArg + "' from " + channel.Name + ". Error: " + err.Error())
 	}
 }
@@ -197,7 +202,7 @@ func addUserToChannel(channel *model.Channel, user *model.User, userArg string) 
 		CommandPrintErrorln("Can't find user '" + userArg + "'")
 		return
 	}
-	if _, err := api.AddUserToChannel(user, channel); err != nil {
+	if _, err := app.AddUserToChannel(user, channel); err != nil {
 		CommandPrintErrorln("Unable to add '" + userArg + "' from " + channel.Name + ". Error: " + err.Error())
 	}
 }
@@ -215,7 +220,7 @@ func deleteChannelsCmdF(cmd *cobra.Command, args []string) error {
 			CommandPrintErrorln("Unable to find channel '" + args[i] + "'")
 			continue
 		}
-		if result := <-api.Srv.Store.Channel().Delete(channel.Id, model.GetMillis()); result.Err != nil {
+		if result := <-app.Srv.Store.Channel().Delete(channel.Id, model.GetMillis()); result.Err != nil {
 			CommandPrintErrorln("Unable to delete channel '" + channel.Name + "' error: " + result.Err.Error())
 		}
 	}
@@ -240,7 +245,7 @@ func listChannelsCmdF(cmd *cobra.Command, args []string) error {
 			CommandPrintErrorln("Unable to find team '" + args[i] + "'")
 			continue
 		}
-		if result := <-api.Srv.Store.Channel().GetAll(team.Id); result.Err != nil {
+		if result := <-app.Srv.Store.Channel().GetAll(team.Id); result.Err != nil {
 			CommandPrintErrorln("Unable to list channels for '" + args[i] + "'")
 		} else {
 			channels := result.Data.([]*model.Channel)
@@ -275,7 +280,7 @@ func restoreChannelsCmdF(cmd *cobra.Command, args []string) error {
 			CommandPrintErrorln("Unable to find channel '" + args[i] + "'")
 			continue
 		}
-		if result := <-api.Srv.Store.Channel().SetDeleteAt(channel.Id, 0, model.GetMillis()); result.Err != nil {
+		if result := <-app.Srv.Store.Channel().SetDeleteAt(channel.Id, 0, model.GetMillis()); result.Err != nil {
 			CommandPrintErrorln("Unable to restore channel '" + args[i] + "'")
 		}
 	}

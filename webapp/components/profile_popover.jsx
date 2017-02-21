@@ -83,6 +83,9 @@ export default class ProfilePopover extends React.Component {
         openDirectChannelToUser(
             user,
             (channel) => {
+                if (Utils.isMobile()) {
+                    GlobalActions.emitCloseRightHandSide();
+                }
                 this.setState({loadingDMChannel: -1});
                 if (this.props.hide) {
                     this.props.hide();
@@ -241,7 +244,7 @@ export default class ProfilePopover extends React.Component {
                 <div
                     data-toggle='tooltip'
                     key='user-popover-dm'
-                    className='popover-dm__content'
+                    className='popover__row'
                 >
                     <a
                         href='#'

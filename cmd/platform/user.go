@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/mattermost/platform/api"
+	"github.com/mattermost/platform/app"
 	"github.com/mattermost/platform/einterfaces"
 	"github.com/mattermost/platform/model"
 	"github.com/mattermost/platform/utils"
@@ -174,7 +174,7 @@ func changeUserActiveStatus(user *model.User, userArg string, activate bool) {
 		CommandPrintErrorln(utils.T("api.user.update_active.no_deactivate_ldap.app_error"))
 		return
 	}
-	if _, err := api.UpdateActive(user, activate); err != nil {
+	if _, err := app.UpdateActive(user, activate); err != nil {
 		CommandPrintErrorln("Unable to change activation status of user: " + userArg)
 	}
 }
@@ -220,13 +220,13 @@ func userCreateCmdF(cmd *cobra.Command, args []string) error {
 		Locale:    locale,
 	}
 
-	ruser, err := api.CreateUser(user)
+	ruser, err := app.CreateUser(user)
 	if err != nil {
 		return errors.New("Unable to create user. Error: " + err.Error())
 	}
 
 	if system_admin {
-		api.UpdateUserRoles(ruser, "system_user system_admin")
+		app.UpdateUserRoles(ruser.Id, "system_user system_admin")
 	}
 
 	CommandPrettyPrintln("Created User")
@@ -261,7 +261,7 @@ func inviteUser(email string, team *model.Team, teamArg string) {
 		CommandPrintErrorln("Can't find team '" + teamArg + "'")
 		return
 	}
-	api.InviteMembers(team, "Administrator", invites)
+	app.SendInviteEmails(team, "Administrator", invites, *utils.Cfg.ServiceSettings.SiteURL)
 	CommandPrettyPrintln("Invites may or may not have been sent.")
 }
 
@@ -277,7 +277,7 @@ func resetUserPasswordCmdF(cmd *cobra.Command, args []string) error {
 	}
 	password := args[1]
 
-	if result := <-api.Srv.Store.User().UpdatePassword(user.Id, model.HashPassword(password)); result.Err != nil {
+	if result := <-app.Srv.Store.User().UpdatePassword(user.Id, model.HashPassword(password)); result.Err != nil {
 		return result.Err
 	}
 
@@ -297,7 +297,7 @@ func resetUserMfaCmdF(cmd *cobra.Command, args []string) error {
 			return errors.New("Unable to find user '" + args[i] + "'")
 		}
 
-		if err := api.DeactivateMfa(user.Id); err != nil {
+		if err := app.DeactivateMfa(user.Id); err != nil {
 			return err
 		}
 	}
@@ -334,7 +334,7 @@ func deleteUserCmdF(cmd *cobra.Command, args []string) error {
 			return errors.New("Unable to find user '" + args[i] + "'")
 		}
 
-		if err := api.PermanentDeleteUser(user); err != nil {
+		if err := app.PermanentDeleteUser(user); err != nil {
 			return err
 		}
 	}
@@ -364,7 +364,7 @@ func deleteAllUsersCommandF(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if err := api.PermanentDeleteAllUsers(); err != nil {
+	if err := app.PermanentDeleteAllUsers(); err != nil {
 		return err
 	} else {
 		CommandPrettyPrintln("Sucsessfull. All users deleted.")
@@ -422,8 +422,9 @@ func verifyUserCmdF(cmd *cobra.Command, args []string) error {
 	for i, user := range users {
 		if user == nil {
 			CommandPrintErrorln("Unable to find user '" + args[i] + "'")
+			continue
 		}
-		if cresult := <-api.Srv.Store.User().VerifyEmail(user.Id); cresult.Err != nil {
+		if cresult := <-app.Srv.Store.User().VerifyEmail(user.Id); cresult.Err != nil {
 			CommandPrintErrorln("Unable to verify '" + args[i] + "' email. Error: " + cresult.Err.Error())
 		}
 	}

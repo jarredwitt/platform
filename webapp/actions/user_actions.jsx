@@ -8,13 +8,16 @@ import TeamStore from 'stores/team_store.jsx';
 import UserStore from 'stores/user_store.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
 
+import {getChannelMembersForUserIds} from 'actions/channel_actions.jsx';
 import {loadStatusesForProfilesList, loadStatusesForProfilesMap} from 'actions/status_actions.jsx';
 
 import {getDirectChannelName} from 'utils/utils.jsx';
+
 import * as AsyncClient from 'utils/async_client.jsx';
 import Client from 'client/web_client.jsx';
 
-import {ActionTypes, Preferences} from 'utils/constants.jsx';
+import {Constants, ActionTypes, Preferences} from 'utils/constants.jsx';
+import {browserHistory} from 'react-router/es6';
 
 export function switchFromLdapToEmail(email, password, token, ldapPassword, onSuccess, onError) {
     Client.ldapToEmail(
@@ -54,6 +57,34 @@ export function loadProfilesAndTeamMembers(offset, limit, teamId = TeamStore.get
         },
         (err) => {
             AsyncClient.dispatchError(err, 'getProfilesInTeam');
+        }
+    );
+}
+
+export function loadProfilesAndTeamMembersAndChannelMembers(offset, limit, teamId = TeamStore.getCurrentId(), channelId = ChannelStore.getCurrentId(), success, error) {
+    Client.getProfilesInChannel(
+        channelId,
+        offset,
+        limit,
+        (data) => {
+            AppDispatcher.handleServerAction({
+                type: ActionTypes.RECEIVED_PROFILES_IN_CHANNEL,
+                profiles: data,
+                channel_id: channelId,
+                offset,
+                count: Object.keys(data).length
+            });
+
+            loadTeamMembersForProfilesMap(
+                data,
+                teamId,
+                () => {
+                    loadChannelMembersForProfilesMap(data, channelId, success, error);
+                    loadStatusesForProfilesMap(data);
+                });
+        },
+        (err) => {
+            AsyncClient.dispatchError(err, 'getProfilesInChannel');
         }
     );
 }
@@ -132,6 +163,56 @@ function loadTeamMembersForProfiles(userIds, teamId, success, error) {
     );
 }
 
+export function loadChannelMembersForProfilesMap(profiles, channelId = ChannelStore.getCurrentId(), success, error) {
+    const membersToLoad = {};
+    for (const pid in profiles) {
+        if (!profiles.hasOwnProperty(pid)) {
+            continue;
+        }
+
+        if (!ChannelStore.hasActiveMemberInChannel(channelId, pid)) {
+            membersToLoad[pid] = true;
+        }
+    }
+
+    const list = Object.keys(membersToLoad);
+    if (list.length === 0) {
+        if (success) {
+            success({});
+        }
+        return;
+    }
+
+    getChannelMembersForUserIds(channelId, list, success, error);
+}
+
+export function loadTeamMembersAndChannelMembersForProfilesList(profiles, teamId = TeamStore.getCurrentId(), channelId = ChannelStore.getCurrentId(), success, error) {
+    loadTeamMembersForProfilesList(profiles, teamId, () => {
+        loadChannelMembersForProfilesList(profiles, channelId, success, error);
+    }, error);
+}
+
+export function loadChannelMembersForProfilesList(profiles, channelId = ChannelStore.getCurrentId(), success, error) {
+    const membersToLoad = {};
+    for (let i = 0; i < profiles.length; i++) {
+        const pid = profiles[i].id;
+
+        if (!ChannelStore.hasActiveMemberInChannel(channelId, pid)) {
+            membersToLoad[pid] = true;
+        }
+    }
+
+    const list = Object.keys(membersToLoad);
+    if (list.length === 0) {
+        if (success) {
+            success({});
+        }
+        return;
+    }
+
+    getChannelMembersForUserIds(channelId, list, success, error);
+}
+
 function populateDMChannelsWithProfiles(userIds) {
     const currentUserId = UserStore.getCurrentId();
 
@@ -141,6 +222,19 @@ function populateDMChannelsWithProfiles(userIds) {
         if (channel) {
             UserStore.saveUserIdInChannel(channel.id, userIds[i]);
         }
+    }
+}
+
+export function loadNewDMIfNeeded(userId) {
+    if (userId === UserStore.getCurrentId()) {
+        return;
+    }
+
+    const pref = PreferenceStore.get(Preferences.CATEGORY_DIRECT_CHANNEL_SHOW, userId, 'false');
+    if (pref === 'false') {
+        PreferenceStore.setPreference(Preferences.CATEGORY_DIRECT_CHANNEL_SHOW, userId, 'true');
+        AsyncClient.savePreference(Preferences.CATEGORY_DIRECT_CHANNEL_SHOW, userId, 'true');
+        loadProfilesAndTeamMembersForDMSidebar();
     }
 }
 
@@ -157,6 +251,41 @@ export function loadProfilesAndTeamMembersForDMSidebar() {
             }
             membersToLoad.push(key);
         }
+    }
+
+    const channelMembers = ChannelStore.getMyMembers();
+    const channels = ChannelStore.getChannels();
+    const newPreferences = [];
+    for (let i = 0; i < channels.length; i++) {
+        const channel = channels[i];
+        if (channel.type !== Constants.DM_CHANNEL) {
+            continue;
+        }
+
+        const member = channelMembers[channel.id];
+        if (!member) {
+            continue;
+        }
+
+        const teammateId = channel.name.replace(member.user_id, '').replace('__', '');
+
+        if (member.mention_count > 0 && membersToLoad.indexOf(teammateId) === -1) {
+            membersToLoad.push(teammateId);
+            newPreferences.push({
+                user_id: UserStore.getCurrentId(),
+                category: Preferences.CATEGORY_DIRECT_CHANNEL_SHOW,
+                name: teammateId,
+                value: 'true'
+            });
+
+            if (!UserStore.hasProfile(teammateId)) {
+                profilesToLoad.push(teammateId);
+            }
+        }
+    }
+
+    if (newPreferences.length > 0) {
+        AsyncClient.savePreferences(newPreferences);
     }
 
     if (profilesToLoad.length > 0) {
@@ -348,10 +477,10 @@ export function updateUser(username, type, success, error) {
             }
         },
         (err) => {
-            AsyncClient.dispatchError(err, 'updateUser');
-
             if (error) {
                 error(err);
+            } else {
+                AsyncClient.dispatchError(err, 'updateUser');
             }
         }
     );
@@ -371,6 +500,24 @@ export function generateMfaSecret(success, error) {
                 error(err);
             }
         }
+    );
+}
+
+export function updateUserNotifyProps(data, success, error) {
+    Client.updateUserNotifyProps(
+      data,
+      () => {
+          AsyncClient.getMe();
+
+          if (success) {
+              success();
+          }
+      },
+      (err) => {
+          if (error) {
+              error(err);
+          }
+      }
     );
 }
 
@@ -412,6 +559,25 @@ export function activateMfa(code, success, error) {
     );
 }
 
+export function deactivateMfa(success, error) {
+    Client.updateMfa(
+        '',
+        false,
+        () => {
+            AsyncClient.getMe();
+
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
 export function checkMfa(loginId, success, error) {
     if (global.window.mm_config.EnableMultifactorAuthentication !== 'true') {
         success(false);
@@ -422,7 +588,7 @@ export function checkMfa(loginId, success, error) {
         loginId,
         (data) => {
             if (success) {
-                success(data.mfa_required === 'true');
+                success(data);
             }
         },
         (err) => {
@@ -453,6 +619,177 @@ export function updateActive(userId, active, success, error) {
 export function updatePassword(userId, currentPassword, newPassword, success, error) {
     Client.updatePassword(userId, currentPassword, newPassword,
         () => {
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function verifyEmail(uid, hid, success, error) {
+    Client.verifyEmail(
+        uid,
+        hid,
+        (data) => {
+            if (success) {
+                success(data);
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function resetPassword(code, password, success, error) {
+    Client.resetPassword(
+        code,
+        password,
+        () => {
+            browserHistory.push('/login?extra=' + ActionTypes.PASSWORD_CHANGE);
+
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function resendVerification(email, success, error) {
+    Client.resendVerification(
+        email,
+        () => {
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function loginById(userId, password, mfaToken, success, error) {
+    Client.loginById(
+        userId,
+        password,
+        mfaToken,
+        () => {
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function createUserWithInvite(user, data, emailHash, inviteId, success, error) {
+    Client.createUserWithInvite(
+        user,
+        data,
+        emailHash,
+        inviteId,
+        (response) => {
+            if (success) {
+                success(response);
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function webLogin(loginId, password, token, success, error) {
+    Client.webLogin(
+        loginId,
+        password,
+        token,
+        () => {
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function webLoginByLdap(loginId, password, token, success, error) {
+    Client.webLoginByLdap(
+        loginId,
+        password,
+        token,
+        (data) => {
+            if (success) {
+                success(data);
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function getAuthorizedApps(success, error) {
+    Client.getAuthorizedApps(
+        (authorizedApps) => {
+            if (success) {
+                success(authorizedApps);
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        });
+}
+
+export function deauthorizeOAuthApp(appId, success, error) {
+    Client.deauthorizeOAuthApp(
+        appId,
+        () => {
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        });
+}
+
+export function uploadProfileImage(userPicture, success, error) {
+    Client.uploadProfileImage(
+        userPicture,
+        () => {
+            AsyncClient.getMe();
             if (success) {
                 success();
             }

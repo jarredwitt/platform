@@ -9,11 +9,9 @@ import MessageHistoryStore from 'stores/message_history_store.jsx';
 import PreferenceStore from 'stores/preference_store.jsx';
 
 import * as GlobalActions from 'actions/global_actions.jsx';
-import {loadPosts} from 'actions/post_actions.jsx';
+import {updatePost} from 'actions/post_actions.jsx';
 
-import Client from 'client/web_client.jsx';
 import * as UserAgent from 'utils/user_agent.jsx';
-import * as AsyncClient from 'utils/async_client.jsx';
 import * as Utils from 'utils/utils.jsx';
 import Constants from 'utils/constants.jsx';
 const KeyCodes = Constants.KeyCodes;
@@ -91,15 +89,12 @@ export default class EditPostModal extends React.Component {
             return;
         }
 
-        Client.updatePost(
+        updatePost(
             updatedPost,
             () => {
-                loadPosts(updatedPost.channel_id);
                 window.scrollTo(0, 0);
             },
-            (err) => {
-                AsyncClient.dispatchError(err, 'updatePost');
-            }
+            Boolean(PostStore.getFocusedPostId())  // If there is focused post we need to update that post's store too.
         );
 
         $('#edit_post').modal('hide');
@@ -125,6 +120,17 @@ export default class EditPostModal extends React.Component {
     }
 
     handleEditPostEvent(options) {
+        var post = PostStore.getPost(options.channelId, options.postId);
+        if (global.window.mm_license.IsLicensed === 'true') {
+            if (global.window.mm_config.AllowEditPost === Constants.ALLOW_EDIT_POST_NEVER) {
+                return;
+            }
+            if (global.window.mm_config.AllowEditPost === Constants.ALLOW_EDIT_POST_TIME_LIMIT) {
+                if ((post.create_at + (global.window.mm_config.PostEditTimeLimit * 1000)) < Utils.getTimestamp()) {
+                    return;
+                }
+            }
+        }
         this.setState({
             editText: options.message || '',
             originalText: options.message || '',
@@ -180,7 +186,10 @@ export default class EditPostModal extends React.Component {
     onModalHide() {
         if (this.state.refocusId !== '') {
             setTimeout(() => {
-                $(this.state.refocusId).get(0).focus();
+                const element = $(this.state.refocusId).get(0);
+                if (element) {
+                    element.focus();
+                }
             });
         }
     }

@@ -1,13 +1,15 @@
 @charset 'UTF-8';
 
 .emoticon {
-    background-repeat: no-repeat;
     background-position: 50% 50%;
+    background-repeat: no-repeat;
     background-size: contain;
     display: inline-block;
-    height: 1.3em;
-    vertical-align: text-top;
-    width: 1.3em;
+    height: 20px;
+    min-height: 1em;
+    min-width: 1em;
+    vertical-align: middle;
+    width: 20px;
 }
 
 .emoticon-suggestion {
@@ -17,13 +19,20 @@
     height: 30px;
     line-height: 30px;
     width: 100%;
+
+    > div {
+        &:first-child {
+            text-align: center;
+            width: 30px;
+        }
+    }
 }
 
 .emoticon-suggestion__image {
-    height: 20px;
-    margin: 6px 6px 0 5px;
+    margin-top: -2px;
+    max-height: 20px;
+    max-width: 20px;
     padding: 0;
     text-align: center;
-    vertical-align: top;
-    width: 20px;
+    vertical-align: middle;
 }

@@ -1469,6 +1469,15 @@ export default class Client {
         end(this.handleResponse.bind(this, 'getMyChannelMembers', success, error));
     }
 
+    getMyChannelMembersForTeam(teamId, success, error) {
+        request.
+        get(`${this.getTeamsRoute()}/${teamId}/channels/members`).
+        set(this.defaultHeaders).
+        type('application/json').
+        accept('application/json').
+        end(this.handleResponse.bind(this, 'getMyChannelMembersForTeam', success, error));
+    }
+
     getChannelByName(channelName, success, error) {
         request.
         get(`${this.getChannelsRoute()}/name/${channelName}`).
@@ -1496,6 +1505,16 @@ export default class Client {
             end(this.handleResponse.bind(this, 'getChannelMember', success, error));
     }
 
+    getChannelMembersByIds(channelId, userIds, success, error) {
+        request.
+            post(`${this.getChannelNeededRoute(channelId)}/members/ids`).
+            set(this.defaultHeaders).
+            type('application/json').
+            accept('application/json').
+            send(userIds).
+            end(this.handleResponse.bind(this, 'getChannelMembersByIds', success, error));
+    }
+
     addChannelMember(channelId, userId, success, error) {
         request.
             post(`${this.getChannelNeededRoute(channelId)}/add`).
@@ -1518,6 +1537,21 @@ export default class Client {
             end(this.handleResponse.bind(this, 'removeChannelMember', success, error));
 
         this.track('api', 'api_channels_remove_member');
+    }
+
+    updateChannelMemberRoles(channelId, userId, newRoles, success, error) {
+        var data = {
+            user_id: userId,
+            new_roles: newRoles
+        };
+
+        request.
+            post(`${this.getChannelNeededRoute(channelId)}/update_member_roles`).
+            set(this.defaultHeaders).
+            type('application/json').
+            accept('application/json').
+            send(data).
+            end(this.handleResponse.bind(this, 'updateChannelMemberRoles', success, error));
     }
 
     // Routes for Commands
@@ -1740,6 +1774,16 @@ export default class Client {
             type('application/json').
             accept('application/json').
             end(this.handleResponse.bind(this, 'getFileInfosForPost', success, error));
+    }
+
+    getOpenGraphMetadata(url, success, error) {
+        request.
+            post(`${this.getBaseRoute()}/get_opengraph_metadata`).
+            set(this.defaultHeaders).
+            type('application/json').
+            accept('application/json').
+            send({url}).
+            end(this.handleResponse.bind(this, 'getOpenGraphMetadata', success, error));
     }
 
     // Routes for Files

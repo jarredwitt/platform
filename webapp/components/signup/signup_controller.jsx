@@ -12,6 +12,7 @@ import BrowserStore from 'stores/browser_store.jsx';
 import * as AsyncClient from 'utils/async_client.jsx';
 import Client from 'client/web_client.jsx';
 import * as GlobalActions from 'actions/global_actions.jsx';
+import {addUserToTeamFromInvite, getInviteInfo} from 'actions/team_actions.jsx';
 
 import logoImage from 'images/logo.png';
 import ErrorBar from 'components/error_bar.jsx';
@@ -68,7 +69,7 @@ export default class SignupController extends React.Component {
             const userLoggedIn = UserStore.getCurrentUser() != null;
 
             if ((inviteId || hash) && userLoggedIn) {
-                Client.addUserToTeamFromInvite(
+                addUserToTeamFromInvite(
                     data,
                     hash,
                     inviteId,
@@ -79,11 +80,16 @@ export default class SignupController extends React.Component {
                             }
                         );
                     },
-                    (e) => {
+                    () => {
                         this.setState({ // eslint-disable-line react/no-did-mount-set-state
                             noOpenServerError: true,
                             loading: false,
-                            serverError: e.message
+                            serverError: (
+                                <FormattedMessage
+                                    id='signup_user_completed.invalid_invite'
+                                    defaultMessage='The invite link was invalid.  Please speak with your Administrator to receive an invitation.'
+                                />
+                            )
                         });
                     }
                 );
@@ -92,7 +98,7 @@ export default class SignupController extends React.Component {
             }
 
             if (inviteId) {
-                Client.getInviteInfo(
+                getInviteInfo(
                     inviteId,
                     (inviteData) => {
                         if (!inviteData) {
@@ -260,7 +266,7 @@ export default class SignupController extends React.Component {
             if (global.window.mm_config.EnableSignUpWithEmail === 'true') {
                 return browserHistory.push('/signup_email' + window.location.search);
             } else if (global.window.mm_license.IsLicensed === 'true' && global.window.mm_config.EnableLdap === 'true') {
-                return browserHistory.push('/signup_ldap');
+                return browserHistory.push('/signup_ldap' + window.location.search);
             }
         }
 

@@ -6,6 +6,7 @@ import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
 import TeamStore from 'stores/team_store.jsx';
 import UserStore from 'stores/user_store.jsx';
 import ChannelStore from 'stores/channel_store.jsx';
+import * as ChannelUtils from 'utils/channel_utils.jsx';
 import PreferenceStore from 'stores/preference_store.jsx';
 
 import {loadProfilesAndTeamMembersForDMSidebar} from 'actions/user_actions.jsx';
@@ -48,7 +49,14 @@ export function executeCommand(message, args, success, error) {
             msg = '/shortcuts';
         }
     }
-    Client.executeCommand(msg, args, success, error);
+    Client.executeCommand(msg, args, success,
+        (err) => {
+            AsyncClient.dispatchError(err, 'executeCommand');
+
+            if (error) {
+                error(err);
+            }
+        });
 }
 
 export function setChannelAsRead(channelIdParam) {
@@ -101,6 +109,9 @@ export function removeUserFromChannel(channelId, userId, success, error) {
             }
             UserStore.emitInChannelChange();
 
+            ChannelStore.removeMemberInChannel(channelId, userId);
+            ChannelStore.emitChange();
+
             if (success) {
                 success(data);
             }
@@ -108,6 +119,48 @@ export function removeUserFromChannel(channelId, userId, success, error) {
         (err) => {
             AsyncClient.dispatchError(err, 'removeChannelMember');
 
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function makeUserChannelAdmin(channelId, userId, success, error) {
+    Client.updateChannelMemberRoles(
+        channelId,
+        userId,
+        'channel_user channel_admin',
+        () => {
+            AsyncClient.getChannelMember(channelId, userId);
+            getChannelMembersForUserIds(channelId, [userId]);
+
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function makeUserChannelMember(channelId, userId, success, error) {
+    Client.updateChannelMemberRoles(
+        channelId,
+        userId,
+        'channel_user',
+        () => {
+            AsyncClient.getChannelMember(channelId, userId);
+            getChannelMembersForUserIds(channelId, [userId]);
+
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
             if (error) {
                 error(err);
             }
@@ -310,4 +363,121 @@ export function createChannel(channel, success, error) {
             }
         }
     );
+}
+
+export function updateChannelPurpose(channelId, purposeValue, success, error) {
+    Client.updateChannelPurpose(
+        channelId,
+        purposeValue,
+        () => {
+            AsyncClient.getChannel(channelId);
+
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function updateChannelHeader(channelId, header, success, error) {
+    Client.updateChannelHeader(
+        channelId,
+        header,
+        (channelData) => {
+            AppDispatcher.handleServerAction({
+                type: ActionTypes.RECEIVED_CHANNEL,
+                channel: channelData
+            });
+
+            if (success) {
+                success(channelData);
+            }
+        },
+        (err) => {
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function getChannelMembersForUserIds(channelId, userIds, success, error) {
+    Client.getChannelMembersByIds(
+        channelId,
+        userIds,
+        (data) => {
+            const memberMap = {};
+            for (let i = 0; i < data.length; i++) {
+                memberMap[data[i].user_id] = data[i];
+            }
+
+            AppDispatcher.handleServerAction({
+                type: ActionTypes.RECEIVED_MEMBERS_IN_CHANNEL,
+                channel_id: channelId,
+                channel_members: memberMap
+            });
+
+            if (success) {
+                success(data);
+            }
+        },
+        (err) => {
+            AsyncClient.dispatchError(err, 'getChannelMembersByIds');
+
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function leaveChannel(channelId, success, error) {
+    Client.leaveChannel(channelId,
+        () => {
+            loadChannelsForCurrentUser();
+
+            if (ChannelUtils.isFavoriteChannelId(channelId)) {
+                unmarkFavorite(channelId);
+            }
+
+            const townsquare = ChannelStore.getByName('town-square');
+            browserHistory.push(TeamStore.getCurrentTeamRelativeUrl() + '/channels/' + townsquare.name);
+
+            if (success) {
+                success();
+            }
+        },
+        (err) => {
+            AsyncClient.dispatchError(err, 'handleLeave');
+
+            if (error) {
+                error(err);
+            }
+        }
+    );
+}
+
+export function deleteChannel(channelId, success, error) {
+    Client.deleteChannel(
+            channelId,
+            () => {
+                loadChannelsForCurrentUser();
+
+                if (success) {
+                    success();
+                }
+            },
+            (err) => {
+                AsyncClient.dispatchError(err, 'handleDelete');
+
+                if (error) {
+                    error(err);
+                }
+            }
+        );
 }
